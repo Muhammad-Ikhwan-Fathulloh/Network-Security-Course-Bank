@@ -27,9 +27,6 @@ Setiap pertemuan dirancang untuk menyeimbangkan teori protokol dengan praktik ek
 | **10** | **Email Security** | Analisis header email (hop-by-hop), simulasi SMTP relay, dan setup SPF/DKIM record. |
 | **11** | **Firewalling** | Implementasi `iptables` rules (Drop, Reject, Accept) dan *Rate Limiting* koneksi. |
 | **12** | **IDS dengan Snort** | Penulisan *Custom Rules* Snort untuk mendeteksi Nmap scan dan serangan Brute Force. |
-
-
-|
 | **13** | **Vuln Scanning** | Vulnerability assessment menggunakan `Nmap NSE`, `Nikto`, dan `OpenVAS/GVM`. |
 | **14** | **Hardening** | Implementasi *Least Privilege*, penutupan port tidak perlu, dan SSH hardening. |
 
