@@ -98,6 +98,3 @@ Untuk memperdalam materi, mahasiswa sangat disarankan merujuk pada:
 * **PortSwigger Academy:** [portswigger.net](https://portswigger.net/web-security) (Latihan web security gratis).
 * **GTFOBins:** [gtfobins.github.io](https://gtfobins.github.io/) (Eksploitasi binary Unix).
 * **MITRE ATT&CK:** [attack.mitre.org](https://attack.mitre.org/) (Basis pengetahuan taktik serangan).
-
-**Langkah Selanjutnya:**
-Apakah Anda ingin saya membuatkan **Panduan Instalasi Docker & Kali Linux** yang lebih mendetail untuk Pertemuan 01?
