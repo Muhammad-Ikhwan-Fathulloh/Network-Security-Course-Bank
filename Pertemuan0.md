@@ -1048,6 +1048,3 @@ docker rm web-server
 ### Tools Online
 - [Mermaid Live Editor](https://mermaid.live/) - Untuk bikin diagram
 - [Play with Docker](https://labs.play-with-docker.com/) - Coba Docker online gratis
----
-
-**Selamat!** Anda sekarang sudah siap untuk memulai petualangan di dunia Network Security dengan Docker dan Kali Linux. Lanjut ke **Pertemuan 1** untuk mempelajari keamanan jaringan dan setup lab persisten yang sebenarnya.
