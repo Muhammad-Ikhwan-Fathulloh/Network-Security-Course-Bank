@@ -3,6 +3,7 @@
 ---
 
 ## Daftar Isi
+
 1. [Apa itu Docker?](#1-apa-itu-docker)
 2. [Apa itu Kali Linux?](#2-apa-itu-kali-linux)
 3. [Mengapa Docker + Kali untuk Belajar Network Security?](#3-mengapa-docker--kali-untuk-belajar-network-security)
@@ -181,6 +182,7 @@ graph TB
 ### A. Instalasi di Windows
 
 **Persyaratan**:
+
 - Windows 10/11 Pro, Enterprise, atau Education
 - Virtualisasi diaktifkan di BIOS (VT-x/AMD-V)
 
@@ -197,6 +199,7 @@ graph TB
 4. **Restart komputer** saat diminta
 
 5. **Setelah restart**, Docker akan otomatis jalan. Verifikasi:
+
    ```powershell
    docker --version
    ```
@@ -206,40 +209,48 @@ graph TB
 **Langkah-langkah**:
 
 1. **Update package**:
+
    ```bash
    sudo apt update
    ```
 
 2. **Install dependensi**:
+
    ```bash
    sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
    ```
 
 3. **Tambah GPG key Docker**:
+
    ```bash
    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
    ```
 
 4. **Tambah repository Docker**:
+
    ```bash
    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
    ```
 
 5. **Install Docker**:
+
    ```bash
    sudo apt update
    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose
    ```
 
 6. **Verifikasi instalasi**:
+
    ```bash
    sudo docker --version
    ```
 
 7. **(Opsional) Agar bisa run tanpa sudo**:
+
    ```bash
    sudo usermod -aG docker $USER
    ```
+
    **Logout lalu login kembali**
 
 ### C. Instalasi di macOS
@@ -251,6 +262,7 @@ graph TB
 3. **Jalankan Docker.app** dari Applications
 
 4. **Verifikasi**:
+
    ```bash
    docker --version
    ```
@@ -280,6 +292,7 @@ graph LR
 **Image** adalah template read-only yang berisi instruksi untuk membuat container. Bisa diibaratkan seperti ISO installer.
 
 **Perintah penting**:
+
 ```bash
 # Melihat image yang ada di lokal
 docker images
@@ -296,11 +309,14 @@ docker rmi nama-image:tag
 docker inspect nama-image
 ```
 
+![Step](/Pertemuan0/pertemuan0%20(1).png)
+
 ### 5.2 Docker Container
 
 **Container** adalah instance dari image yang berjalan. Bisa diibaratkan seperti hasil instalasi dari ISO.
 
 **Perintah penting**:
+
 ```bash
 # Menjalankan container baru
 docker run hello-world
@@ -325,11 +341,16 @@ docker exec -it nama-container bash
 docker logs nama-container
 ```
 
+![Step](/Pertemuan0/pertemuan0%20(2).png)
+
+![Step](/Pertemuan0/pertemuan0%20(3).png)
+
 ### 5.3 Docker Hub
 
 **Docker Hub** adalah registry online tempat menyimpan dan membagikan image.
 
 **Perintah penting**:
+
 ```bash
 # Mencari image di Docker Hub
 docker search kali
@@ -371,6 +392,8 @@ docker run --privileged kalilinux/kali-rolling
 
 ### 6.1 Mendownload Image Kali
 
+![Step](/Pertemuan0/pertemuan0%20(4).png)
+
 ```bash
 # Download image resmi Kali Linux Rolling
 docker pull kalilinux/kali-rolling
@@ -387,6 +410,7 @@ docker run -it --name kali-basic kalilinux/kali-rolling bash
 ```
 
 **Di dalam container**:
+
 ```bash
 # Update repository
 apt update
@@ -417,6 +441,7 @@ docker run -it \
 ```
 
 **Penjelasan parameter**:
+
 - `--privileged`: Memberi akses ke semua device host (untuk packet capture)
 - `--network host`: Container menggunakan network stack host (untuk serangan jaringan)
 - `-v ~/kali-data:/root`: Mount folder lokal ke /root di container
@@ -479,6 +504,7 @@ msfconsole --version
 Container bersifat **ephemeral** (sementara). Semua data akan hilang saat container dihapus.
 
 **Demonstrasi**:
+
 ```bash
 # Buat container dengan file
 docker run -it --name test ubuntu bash
@@ -519,17 +545,20 @@ graph LR
 ### 7.3 Tiga Jenis Volume
 
 **1. Bind Mount** (yang akan kita gunakan):
+
 ```bash
 docker run -v /home/user/folder:/container/folder ubuntu
 ```
 
 **2. Named Volume**:
+
 ```bash
 docker volume create mydata
 docker run -v mydata:/data ubuntu
 ```
 
 **3. Anonymous Volume**:
+
 ```bash
 docker run -v /data ubuntu
 ```
@@ -656,6 +685,7 @@ docker run -it \
 ### 8.5 Uji Konektivitas Antar Container
 
 **Dari container 1**:
+
 ```bash
 # Install ping
 apt update && apt install -y iputils-ping
@@ -683,6 +713,7 @@ docker run -it \
 ```
 
 **Di dalam container**:
+
 ```bash
 # Lihat interface jaringan (sama dengan host!)
 ip addr
@@ -720,6 +751,7 @@ docker run -d \
 **Di Windows/Mac**: Sudah termasuk dalam Docker Desktop
 
 **Di Linux**:
+
 ```bash
 sudo apt update
 sudo apt install -y docker-compose
@@ -1029,22 +1061,27 @@ docker rm web-server
 ## 12. Sumber Belajar
 
 ### Dokumentasi Resmi
+
 - [Docker Documentation](https://docs.docker.com/)
 - [Kali Linux Documentation](https://www.kali.org/docs/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 
 ### Video Tutorial
+
 - [Docker Tutorial for Beginners (freeCodeCamp)](https://www.youtube.com/watch?v=fqMOX6JJhGo)
 - [Kali Linux Tutorial (NetworkChuck)](https://www.youtube.com/playlist?list=PLIhvC56v63IJIujbMvUZUtp6G-fWzlklu)
 
 ### Buku Referensi
+
 - "Docker Deep Dive" by Nigel Poulton
 - "Kali Linux Revealed" by Offensive Security
 
 ### Cheat Sheet
+
 - [Docker Cheat Sheet](https://dockerlabs.collabnix.com/docker/cheatsheet/)
 - [Kali Linux Cheat Sheet](https://www.kali.org/tools/)
 
 ### Tools Online
+
 - [Mermaid Live Editor](https://mermaid.live/) - Untuk bikin diagram
 - [Play with Docker](https://labs.play-with-docker.com/) - Coba Docker online gratis
