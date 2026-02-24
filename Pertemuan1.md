@@ -230,6 +230,8 @@ Anda akan melihat file `docker-compose.yml` bersama folder `kali-home`
 ```bash
 docker-compose up -d
 ```
+![Step](/Pertemuan1/pertemuan1%20(7).png)
+
 *Parameter `-d` berarti "detached mode" (berjalan di latar belakang)*
 
 2. **Tunggu proses download selesai** (tergantung kecepatan internet):
@@ -247,6 +249,8 @@ CONTAINER ID   IMAGE                      STATUS         NAMES
 abc123def456   kalilinux/kali-rolling     Up 2 minutes   kali-attacker
 xyz789uvw123   vulnerables/web-dvwa       Up 2 minutes   target-web
 ```
+
+![Step](/Pertemuan1/pertemuan1%20(8).png)
 
 4. **Jika ada error**, cek log:
 ```bash
@@ -268,6 +272,7 @@ docker logs target-web
 ```bash
 docker exec -it kali-attacker bash
 ```
+![Step](/Pertemuan1/pertemuan1%20(9).png)
 
 2. **Setelah masuk, prompt akan berubah menjadi**:
 ```bash
@@ -279,6 +284,7 @@ root@kali-attacker:/#
 apt update
 apt install -y nmap iputils-ping net-tools curl
 ```
+![Step](/Pertemuan1/pertemuan1%20(10).png)
 
 **Penjelasan tools**:
 - `nmap`: Network scanner untuk menemukan host dan layanan
@@ -291,7 +297,6 @@ apt install -y nmap iputils-ping net-tools curl
 nmap --version
 ping --version
 ```
-
 ---
 
 ### Tahap B: Verifikasi Koneksi & CIA Analysis
@@ -304,6 +309,7 @@ ping --version
 ```bash
 ping -c 4 172.20.0.10
 ```
+![Step](/Pertemuan1/pertemuan1%20(11).png)
 
 **Output yang diharapkan**:
 ```
@@ -323,6 +329,7 @@ PING 172.20.0.10 (172.20.0.10) 56(84) bytes of data.
 ```bash
 ping -c 2 google.com
 ```
+![Step](/Pertemuan1/pertemuan1%20(12).png)
 
 3. **Keluar dari container Kali** (tanpa menghentikannya):
 ```bash
@@ -341,11 +348,14 @@ exit
 ```bash
 docker exec -it kali-attacker bash
 ```
+![Step](/Pertemuan1/pertemuan1%20(13).png)
+
 
 2. **Lakukan port scanning dengan Nmap**:
 ```bash
 nmap -sV 172.20.0.10 > /root/hasil-scan.txt
 ```
+![Step](/Pertemuan1/pertemuan1%20(14).png)
 
 **Penjelasan parameter**:
 - `-sV`: Mendeteksi versi layanan yang berjalan
