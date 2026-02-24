@@ -329,6 +329,9 @@ openssl rsa -in private.pem -pubout -out public.pem
 # Lihat kunci publik
 cat public.pem
 ```
+![Step](/Pertemuan2/pertemuan2%20(16).png)
+
+![Step](/Pertemuan2/pertemuan2%20(17).png)
 
 ### 6.2 Enkripsi dengan Kunci Publik
 
@@ -342,6 +345,9 @@ openssl rsautl -encrypt -inkey public.pem -pubin -in perintah.txt -out perintah.
 # Lihat hasilnya (tidak terbaca)
 hexdump -C perintah.enc | head
 ```
+![Step](/Pertemuan2/pertemuan2%20(18).png)
+
+![Step](/Pertemuan2/pertemuan2%20(19).png)
 
 ### 6.3 Dekripsi dengan Kunci Privat
 
@@ -352,6 +358,7 @@ openssl rsautl -decrypt -inkey private.pem -in perintah.enc -out perintah-dekrip
 # Lihat hasilnya
 cat perintah-dekripsi.txt
 ```
+![Step](/Pertemuan2/pertemuan2%20(20).png)
 
 ### 6.4 Keterbatasan RSA
 
@@ -364,6 +371,7 @@ for i in {1..50}; do echo "Baris ke-$i dengan data panjang..." >> data-besar.txt
 openssl rsautl -encrypt -inkey public.pem -pubin -in data-besar.txt -out data-besar.enc
 # ERROR: data too large for key size
 ```
+![Step](/Pertemuan2/pertemuan2%20(21).png)
 
 **Solusi**: Gunakan hybrid encryption (RSA untuk kunci, AES untuk data)
 
@@ -382,6 +390,7 @@ openssl genrsa -out server.key 2048
 # Buat sertifikat self-signed (berlaku 365 hari)
 openssl req -new -x509 -days 365 -key server.key -out server.crt -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Lab Security/CN=localhost"
 ```
+![Step](/Pertemuan2/pertemuan2%20(22).png)
 
 ### 7.2 Membaca Isi Sertifikat
 
@@ -395,6 +404,7 @@ openssl x509 -in server.crt -text -noout
 # - Validity: Masa berlaku
 # - Public Key: Kunci publik server
 ```
+![Step](/Pertemuan2/pertemuan2%20(23).png)
 
 ### 7.3 Informasi Spesifik dari Sertifikat
 
@@ -410,6 +420,7 @@ openssl x509 -in server.crt -noout -dates
 # Lihat fingerprint (hash sertifikat)
 openssl x509 -in server.crt -noout -fingerprint -sha256
 ```
+![Step](/Pertemuan2/pertemuan2%20(24).png)
 
 ### 7.4 Analisis Sertifikat Website Real
 
@@ -429,6 +440,7 @@ echo ""
 echo "Masa berlaku:"
 openssl x509 -in google.crt -noout -dates
 ```
+![Step](/Pertemuan2/pertemuan2%20(25).png)
 
 ---
 
@@ -451,6 +463,7 @@ sha256sum passwords.txt > passwords.txt.sha256
 # Nanti untuk cek apakah file masih asli:
 sha256sum -c passwords.txt.sha256
 ```
+![Step](/Pertemuan2/pertemuan2%20(26).png)
 
 ### Latihan 2: Kirim Pesan Rahasia ke Teman
 
@@ -464,6 +477,7 @@ openssl enc -aes-256-cbc -salt -in pesan.txt -out pesan.enc -base64
 cat pesan.enc
 # Copy paste outputnya
 ```
+![Step](/Pertemuan2/pertemuan2%20(27).png)
 
 **Di sisi penerima**:
 ```bash
@@ -474,6 +488,7 @@ nano pesan.enc  # paste di sini
 openssl enc -aes-256-cbc -d -in pesan.enc -out pesan-dekripsi.txt -base64
 cat pesan-dekripsi.txt
 ```
+![Step](/Pertemuan2/pertemuan2%20(28).png)
 
 ### Latihan 3: Buat Sertifikat untuk Website Palsu
 
@@ -484,6 +499,7 @@ openssl req -new -x509 -days 30 -newkey rsa:2048 -keyout website.key -out websit
 # Jalankan web server sederhana dengan sertifikat ini (simulasi)
 echo "Selesai! Sertifikat untuk belajar-keamanan.local telah dibuat."
 ```
+![Step](/Pertemuan2/pertemuan2%20(29).png)
 
 ### Latihan 4: Script Enkripsi Sederhana
 
@@ -515,6 +531,7 @@ EOF
 chmod +x myencrypt.sh
 ./myencrypt.sh
 ```
+![Step](/Pertemuan2/pertemuan2%20(30).png)
 
 ### Latihan 5: Verifikasi Tanda Tangan Digital
 
@@ -536,6 +553,7 @@ echo "Saya TIDAK setuju dengan kontrak ini." > kontrak.txt
 openssl dgst -sha256 -verify public.pem -signature kontrak.sig kontrak.txt
 # Output: Verification Failure
 ```
+![Step](/Pertemuan2/pertemuan2%20(31).png)
 
 ---
 
