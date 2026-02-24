@@ -48,12 +48,12 @@ Docker menggunakan teknologi **Containerization**, yang memungkinkan isolasi apl
 
 ### Perbedaan VM vs Container
 
-| Aspek | Virtual Machine | Docker Container |
-|-------|-----------------|------------------|
-| Waktu Boot | Menit | Detik |
-| Ukuran | GB | MB |
-| Resource | Heavy (butuh OS sendiri) | Lightweight (share kernel host) |
-| Isolasi | Level hardware | Level proses |
+| Aspek      | Virtual Machine          | Docker Container                |
+| ---------- | ------------------------ | ------------------------------- |
+| Waktu Boot | Menit                    | Detik                           |
+| Ukuran     | GB                       | MB                              |
+| Resource   | Heavy (butuh OS sendiri) | Lightweight (share kernel host) |
+| Isolasi    | Level hardware           | Level proses                    |
 
 ### Bagan Arsitektur Jaringan Lab
 
@@ -147,6 +147,8 @@ ls -la
 ```
 Anda akan melihat folder `kali-home` dan nantinya file `docker-compose.yml`
 
+![Step](/Pertemuan1/pertemuan1%20(1).png)
+
 ---
 
 ### Langkah 2: Membuat Blueprint Lab (Docker Compose)
@@ -197,13 +199,24 @@ networks:
         - subnet: 172.20.0.0/24
 ```
 
+![Step](/Pertemuan1/pertemuan1%20(2).png)
+
 3. **Simpan file** (di nano: `Ctrl+X`, lalu `Y`, lalu `Enter`)
+
+![Step](/Pertemuan1/pertemuan1%20(3).png)
+
+![Step](/Pertemuan1/pertemuan1%20(4).png)
+
+![Step](/Pertemuan1/pertemuan1%20(5).png)
 
 4. **Verifikasi file telah dibuat**:
 ```bash
 ls -la
 ```
+![Step](/Pertemuan1/pertemuan1%20(6).png)
+
 Anda akan melihat file `docker-compose.yml` bersama folder `kali-home`
+
 
 ---
 
