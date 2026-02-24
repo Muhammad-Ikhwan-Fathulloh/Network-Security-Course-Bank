@@ -119,6 +119,7 @@ cd ~/netsec-lab
 # Masuk ke container Kali
 docker-compose exec kali-attacker bash
 ```
+![Step](/Pertemuan2/pertemuan2%20(1).png)
 
 ### 3.2 Install Tools
 
@@ -135,6 +136,15 @@ cd /root/crypto-lab
 echo "Ini adalah pesan rahasia" > pesan.txt
 echo "Password: admin123" > password.txt
 ```
+![Step](/Pertemuan2/pertemuan2%20(2).png)
+
+![Step](/Pertemuan2/pertemuan2%20(3).png)
+
+![Step](/Pertemuan2/pertemuan2%20(4).png)
+
+![Step](/Pertemuan2/pertemuan2%20(5).png)
+
+![Step](/Pertemuan2/pertemuan2%20(6).png)
 
 ---
 
@@ -157,6 +167,10 @@ sha256sum file.txt
 # Output: 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069  file.txt
 ```
 
+![Step](/Pertemuan2/pertemuan2%20(7).png)
+
+![Step](/Pertemuan2/pertemuan2%20(8).png)
+
 **Catatan**: SHA-256 lebih panjang dan lebih aman dari MD5.
 
 ### 4.2 Membuktikan Avalanche Effect
@@ -174,6 +188,7 @@ sha256sum file2.txt
 
 # Hash akan sangat berbeda meski hanya beda kapitalisasi!
 ```
+![Step](/Pertemuan2/pertemuan2%20(9).png)
 
 ### 4.3 Verifikasi File Tidak Berubah
 
@@ -195,6 +210,7 @@ echo "Data Ujian: 100" > nilai.txt
 sha256sum -c nilai.txt.sha256
 # Output: nilai.txt: FAILED
 ```
+![Step](/Pertemuan2/pertemuan2%20(10).png)
 
 ### 4.4 Menyimpan Password dengan Hash
 
@@ -221,6 +237,7 @@ else
     echo "GAGAL"
 fi
 ```
+![Step](/Pertemuan2/pertemuan2%20(11).png)
 
 ---
 
@@ -246,8 +263,9 @@ openssl enc -aes-256-cbc -salt -in surat-cinta.txt -out surat-cinta.enc
 
 # Lihat hasilnya (sudah tidak terbaca)
 cat surat-cinta.enc
-# Output: �Z�x��l�ɮ� ...
+# Output: Zxlɮ ...
 ```
+![Step](/Pertemuan2/pertemuan2%20(12).png)
 
 ### 5.2 Dekripsi File
 
@@ -260,6 +278,7 @@ openssl enc -aes-256-cbc -d -in surat-cinta.enc -out surat-cinta-dekripsi.txt
 # Lihat hasilnya
 cat surat-cinta-dekripsi.txt
 ```
+![Step](/Pertemuan2/pertemuan2%20(13).png)
 
 ### 5.3 Enkripsi dengan Base64 (Agar Bisa Dikirim via Email)
 
@@ -275,6 +294,7 @@ cat surat-cinta.b64
 openssl enc -aes-256-cbc -d -in surat-cinta.b64 -out surat-cinta-hasil.txt -base64
 cat surat-cinta-hasil.txt
 ```
+![Step](/Pertemuan2/pertemuan2%20(14).png)
 
 ### 5.4 Eksperimen: Password Salah
 
@@ -285,6 +305,7 @@ openssl enc -aes-256-cbc -d -in surat-cinta.enc -out coba.txt -pass pass:salah12
 # Akan muncul error: bad decrypt
 # File coba.txt akan kosong/rusak
 ```
+![Step](/Pertemuan2/pertemuan2%20(15).png)
 
 ---
 
@@ -520,15 +541,15 @@ openssl dgst -sha256 -verify public.pem -signature kontrak.sig kontrak.txt
 
 ## Ringkasan Perintah Penting
 
-| Fungsi | Perintah |
-|--------|----------|
-| Hash MD5 | `md5sum file.txt` |
-| Hash SHA-256 | `sha256sum file.txt` |
-| Enkripsi AES | `openssl enc -aes-256-cbc -in file.txt -out file.enc` |
-| Dekripsi AES | `openssl enc -aes-256-cbc -d -in file.enc -out file.txt` |
-| Buat kunci RSA | `openssl genrsa -out private.pem 2048` |
-| Ekstrak kunci publik | `openssl rsa -in private.pem -pubout -out public.pem` |
-| Enkripsi RSA | `openssl rsautl -encrypt -inkey public.pem -pubin -in file.txt -out file.enc` |
-| Dekripsi RSA | `openssl rsautl -decrypt -inkey private.pem -in file.enc -out file.txt` |
-| Buat sertifikat | `openssl req -new -x509 -days 365 -key server.key -out server.crt` |
-| Lihat sertifikat | `openssl x509 -in server.crt -text -noout` |
+| Fungsi               | Perintah                                                                      |
+| -------------------- | ----------------------------------------------------------------------------- |
+| Hash MD5             | `md5sum file.txt`                                                             |
+| Hash SHA-256         | `sha256sum file.txt`                                                          |
+| Enkripsi AES         | `openssl enc -aes-256-cbc -in file.txt -out file.enc`                         |
+| Dekripsi AES         | `openssl enc -aes-256-cbc -d -in file.enc -out file.txt`                      |
+| Buat kunci RSA       | `openssl genrsa -out private.pem 2048`                                        |
+| Ekstrak kunci publik | `openssl rsa -in private.pem -pubout -out public.pem`                         |
+| Enkripsi RSA         | `openssl rsautl -encrypt -inkey public.pem -pubin -in file.txt -out file.enc` |
+| Dekripsi RSA         | `openssl rsautl -decrypt -inkey private.pem -in file.enc -out file.txt`       |
+| Buat sertifikat      | `openssl req -new -x509 -days 365 -key server.key -out server.crt`            |
+| Lihat sertifikat     | `openssl x509 -in server.crt -text -noout`                                    |
