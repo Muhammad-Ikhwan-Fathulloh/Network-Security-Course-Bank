@@ -102,21 +102,6 @@ graph LR
 **Apa itu Enkripsi Asimetris?**
 Dua kunci berbeda: satu untuk mengunci (publik), satu untuk membuka (privat).
 
-```mermaid
-graph LR
-    subgraph Pengirim
-        A[Pesan: Halo] --> B[🔐 Kunci Publik]
-        B --> C[XyZ@123]
-    end
-    
-    subgraph Penerima
-        D[XyZ@123] --> E[🔑 Kunci Privat]
-        E --> F[Pesan: Halo]
-    end
-    
-    C -->|Kirim| D
-```
-
 **Contoh Sehari-hari**: Kotak surat dengan celah untuk memasukkan surat (kunci publik), tapi hanya pemilik yang punya kunci untuk membukanya (kunci privat).
 
 **Algoritma Populer**: RSA
