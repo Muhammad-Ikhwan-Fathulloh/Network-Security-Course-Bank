@@ -355,8 +355,6 @@ docker exec -it kali-attacker bash
 ```bash
 nmap -sV 172.20.0.10 > /root/hasil-scan.txt
 ```
-![Step](/Pertemuan1/pertemuan1%20(14).png)
-
 **Penjelasan parameter**:
 - `-sV`: Mendeteksi versi layanan yang berjalan
 - `> /root/hasil-scan.txt`: Menyimpan hasil ke file
@@ -365,6 +363,8 @@ nmap -sV 172.20.0.10 > /root/hasil-scan.txt
 ```bash
 cat /root/hasil-scan.txt
 ```
+
+![Step](/Pertemuan1/pertemuan1%20(14).png)
 
 **Output yang diharapkan** (DVWA biasanya):
 ```
