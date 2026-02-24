@@ -67,13 +67,13 @@ graph TB
 
 ### Tabel Perbandingan
 
-| Aspek | Virtual Machine | Docker Container |
-|-------|----------------|------------------|
-| **Waktu Boot** | Menit (boot OS penuh) | Detik (start proses) |
-| **Ukuran** | GB (ISO OS + aplikasi) | MB (hanya aplikasi + lib) |
-| **Resource** | Heavy (butuh RAM/CPU untuk OS) | Lightweight (share kernel host) |
-| **Isolasi** | Level hardware (sangat kuat) | Level proses (cukup kuat) |
-| **Portabilitas** | Bisa berat (format OVA, VHD) | Sangat ringan (Docker image) |
+| Aspek            | Virtual Machine                | Docker Container                |
+| ---------------- | ------------------------------ | ------------------------------- |
+| **Waktu Boot**   | Menit (boot OS penuh)          | Detik (start proses)            |
+| **Ukuran**       | GB (ISO OS + aplikasi)         | MB (hanya aplikasi + lib)       |
+| **Resource**     | Heavy (butuh RAM/CPU untuk OS) | Lightweight (share kernel host) |
+| **Isolasi**      | Level hardware (sangat kuat)   | Level proses (cukup kuat)       |
+| **Portabilitas** | Bisa berat (format OVA, VHD)   | Sangat ringan (Docker image)    |
 
 ---
 
@@ -102,15 +102,15 @@ graph TB
 
 ### Tools Penting untuk Network Security
 
-| Kategori | Tools |
-|----------|-------|
-| **Scanning** | Nmap, Masscan, Zenmap |
-| **Sniffing** | Wireshark, Tcpdump, Bettercap |
-| **Wireless** | Aircrack-ng, Kismet, Reaver |
-| **Web App** | Burp Suite, SQLmap, Nikto |
-| **Password** | John the Ripper, Hydra, Crunch |
+| Kategori         | Tools                                        |
+| ---------------- | -------------------------------------------- |
+| **Scanning**     | Nmap, Masscan, Zenmap                        |
+| **Sniffing**     | Wireshark, Tcpdump, Bettercap                |
+| **Wireless**     | Aircrack-ng, Kismet, Reaver                  |
+| **Web App**      | Burp Suite, SQLmap, Nikto                    |
+| **Password**     | John the Ripper, Hydra, Crunch               |
 | **Exploitation** | Metasploit, BeEF, Social Engineering Toolkit |
-| **Forensik** | Autopsy, Sleuth Kit, Volatility |
+| **Forensik**     | Autopsy, Sleuth Kit, Volatility              |
 
 ---
 
@@ -118,14 +118,14 @@ graph TB
 
 ### Keuntungan Utama
 
-| Keuntungan | Penjelasan |
-|------------|------------|
-| **Isolasi Aman** | Eksperimen serangan tidak merusak sistem utama |
-| **Portabel** | Bawa lab ke mana saja dalam satu folder |
-| **Reproducible** | Setup lab yang sama berulang-ulang |
+| Keuntungan           | Penjelasan                                     |
+| -------------------- | ---------------------------------------------- |
+| **Isolasi Aman**     | Eksperimen serangan tidak merusak sistem utama |
+| **Portabel**         | Bawa lab ke mana saja dalam satu folder        |
+| **Reproducible**     | Setup lab yang sama berulang-ulang             |
 | **Resource Efisien** | Bisa jalankan banyak container di laptop biasa |
-| **Clean State** | Rusak? Hapus container, buat baru dalam detik |
-| **Realistis** | Mirip environment server sungguhan |
+| **Clean State**      | Rusak? Hapus container, buat baru dalam detik  |
+| **Realistis**        | Mirip environment server sungguhan             |
 
 ### Arsitektur Belajar dengan Docker + Kali
 
@@ -167,13 +167,13 @@ graph TB
 
 ### Perbandingan Metode Belajar
 
-| Metode | Kelebihan | Kekurangan |
-|--------|-----------|------------|
-| **VM Tradisional** | Isolasi kuat | Berat, butuh resource besar |
-| **Install Langsung** | Performa maksimal | Berisiko merusak OS utama |
-| **Dual Boot** | Performa native | Ribet ganti-ganti OS |
-| **Cloud VM** | Akses di mana saja | Berbayar, butuh internet |
-| **DOCKER + KALI** | Ringan, cepat, aman | Perlu belajar Docker dulu |
+| Metode               | Kelebihan           | Kekurangan                  |
+| -------------------- | ------------------- | --------------------------- |
+| **VM Tradisional**   | Isolasi kuat        | Berat, butuh resource besar |
+| **Install Langsung** | Performa maksimal   | Berisiko merusak OS utama   |
+| **Dual Boot**        | Performa native     | Ribet ganti-ganti OS        |
+| **Cloud VM**         | Akses di mana saja  | Berbayar, butuh internet    |
+| **DOCKER + KALI**    | Ringan, cepat, aman | Perlu belajar Docker dulu   |
 
 ---
 
@@ -309,8 +309,6 @@ docker rmi nama-image:tag
 docker inspect nama-image
 ```
 
-![Step](/Pertemuan0/pertemuan0%20(1).png)
-
 ### 5.2 Docker Container
 
 **Container** adalah instance dari image yang berjalan. Bisa diibaratkan seperti hasil instalasi dari ISO.
@@ -340,10 +338,6 @@ docker exec -it nama-container bash
 # Melihat log container
 docker logs nama-container
 ```
-
-![Step](/Pertemuan0/pertemuan0%20(2).png)
-
-![Step](/Pertemuan0/pertemuan0%20(3).png)
 
 ### 5.3 Docker Hub
 
@@ -391,8 +385,6 @@ docker run --privileged kalilinux/kali-rolling
 ## 6. Menjalankan Kali Linux dengan Docker
 
 ### 6.1 Mendownload Image Kali
-
-![Step](/Pertemuan0/pertemuan0%20(4).png)
 
 ```bash
 # Download image resmi Kali Linux Rolling
@@ -519,6 +511,8 @@ docker run -it --name test2 ubuntu bash
 cat /data.txt  # ERROR! File tidak ada
 ```
 
+
+
 ### 7.2 Solusi: Volume
 
 **Volume** adalah mekanisme menyimpan data di host agar persist meski container dihapus.
@@ -610,12 +604,12 @@ cat /root/test.txt  # MASIH ADA!
 
 Docker menyediakan beberapa jenis network driver:
 
-| Driver | Fungsi | Use Case |
-|--------|--------|----------|
-| **bridge** | Jaringan internal antar container | Default, untuk lab terisolasi |
-| **host** | Container pakai network host | Butuh performa tinggi, akses langsung |
-| **none** | Tanpa jaringan | Container terisolasi total |
-| **overlay** | Menghubungkan multi-host | Swarm/cluster |
+| Driver      | Fungsi                            | Use Case                              |
+| ----------- | --------------------------------- | ------------------------------------- |
+| **bridge**  | Jaringan internal antar container | Default, untuk lab terisolasi         |
+| **host**    | Container pakai network host      | Butuh performa tinggi, akses langsung |
+| **none**    | Tanpa jaringan                    | Container terisolasi total            |
+| **overlay** | Menghubungkan multi-host          | Swarm/cluster                         |
 
 ### 8.2 Bridge Network (yang akan kita gunakan)
 
@@ -976,6 +970,8 @@ exit
 docker rm ubuntu-test
 ```
 
+![Step](/Pertemuan0/pertemuan0%20(1).png)
+
 ### Latihan 2: Kali Linux dengan Tools
 
 ```bash
@@ -1006,6 +1002,22 @@ ls -la /root/
 cat /root/scan.sh  # Harusnya masih ada!
 ```
 
+![Step](/Pertemuan0/pertemuan0%20(2).png)
+
+![Step](/Pertemuan0/pertemuan0%20(3).png)
+
+![Step](/Pertemuan0/pertemuan0%20(4).png)
+
+![Step](/Pertemuan0/pertemuan0%20(5).png)
+
+![Step](/Pertemuan0/pertemuan0%20(6).png)
+
+![Step](/Pertemuan0/pertemuan0%20(7).png)
+
+![Step](/Pertemuan0/pertemuan0%20(8).png)
+
+![Step](/Pertemuan0/pertemuan0%20(9).png)
+
 ### Latihan 3: Jaringan dengan Dua Container
 
 ```bash
@@ -1030,6 +1042,19 @@ docker stop server-a server-b
 docker rm server-a server-b
 docker network rm latihan-net
 ```
+
+![Step](/Pertemuan0/pertemuan0%20(10).png)
+
+![Step](/Pertemuan0/pertemuan0%20(11).png)
+
+![Step](/Pertemuan0/pertemuan0%20(12).png)
+
+![Step](/Pertemuan0/pertemuan0%20(13).png)
+
+![Step](/Pertemuan0/pertemuan0%20(14).png)
+
+![Step](/Pertemuan0/pertemuan0%20(15).png)
+
 
 ### Latihan 4: Web Server dengan Port Mapping
 
@@ -1056,6 +1081,21 @@ docker stop web-server
 docker rm web-server
 ```
 
+![Step](/Pertemuan0/pertemuan0%20(16).png)
+
+![Step](/Pertemuan0/pertemuan0%20(17).png)
+
+![Step](/Pertemuan0/pertemuan0%20(18).png)
+
+![Step](/Pertemuan0/pertemuan0%20(19).png)
+
+![Step](/Pertemuan0/pertemuan0%20(20).png)
+
+![Step](/Pertemuan0/pertemuan0%20(21).png)
+
+![Step](/Pertemuan0/pertemuan0%20(22).png)
+
+![Step](/Pertemuan0/pertemuan0%20(23).png)
 ---
 
 ## 12. Sumber Belajar
