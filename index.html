@@ -263,19 +263,50 @@
                     fileNameSpan.innerText = filename;
                 }
 
-                // Fetch and render markdown
+                // Fetch markdown
                 const rawMarkdown = await getMarkdownContent(filename);
 
-                // Konfigurasi marked (opsional: bisa tambahkan hiasan jika perlu)
-                const htmlContent = marked.parse(rawMarkdown);
+                // Kustomisasi marked renderer
+                const renderer = new marked.Renderer();
+
+                // Handle Mermaid blocks
+                const orangeRenderer = renderer.code.bind(renderer);
+                renderer.code = function (code, language, escaped) {
+                    if (language === 'mermaid') {
+                        return `<div class="mermaid">${code}</div>`;
+                    }
+                    return orangeRenderer(code, language, escaped);
+                };
+
+                // Handle Image Paths (strip leading slash to make them relative)
+                renderer.image = function (href, title, text) {
+                    let imagePath = href;
+                    if (imagePath.startsWith('/')) {
+                        imagePath = imagePath.substring(1);
+                    }
+                    return `<img src="${imagePath}" alt="${text || ''}" title="${title || ''}" class="img-fluid rounded my-3 border shadow-sm">`;
+                };
+
+                // Render HTML
+                const htmlContent = marked.parse(rawMarkdown, { renderer });
                 markdownContainer.innerHTML = htmlContent;
 
-                // highlight semua blok kode
+                // Highlight code blocks
                 markdownContainer.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
+                    if (!block.parentElement.classList.contains('mermaid')) {
+                        hljs.highlightElement(block);
+                    }
                 });
 
-                // Scroll ke atas setiap kali ganti file
+                // Render Mermaid Diagrams
+                try {
+                    // Reset mermaid to avoid issues with re-init
+                    mermaid.init(undefined, markdownContainer.querySelectorAll(".mermaid"));
+                } catch (err) {
+                    console.error("Mermaid error:", err);
+                }
+
+                // Scroll ke atas
                 document.getElementById('contentMain').scrollTop = 0;
             }
 
