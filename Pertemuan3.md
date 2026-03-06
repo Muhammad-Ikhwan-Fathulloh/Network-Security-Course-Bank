@@ -128,30 +128,25 @@ Buat file `docker-compose.yml`:
 version: '3.8'
 
 services:
-  # KORBAN - Ubuntu ringan
+  # KORBAN
   korban:
     image: ubuntu:22.04
     container_name: korban
-    hostname: korban-pc
+    hostname: pc-korban
     networks:
       lab_network:
         ipv4_address: 172.20.0.10
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
     tty: true
     stdin_open: true
-    volumes:
-      - ./shared:/shared
     command: >
       bash -c "
       apt update &&
-      apt install -y curl iputils-ping net-tools tcpdump &&
-      echo '✅ Korban siap' &&
+      apt install -y curl net-tools iputils-ping tcpdump dnsutils &&
+      echo '✅ KORBAN SIAP (172.20.0.10)' &&
       tail -f /dev/null
       "
 
-  # WEBSERVER ASLI
+  # WEBSITE ASLI
   web-asli:
     image: nginx:alpine
     container_name: web-asli
@@ -164,11 +159,11 @@ services:
       - "8080:80"
     command: >
       sh -c "
-      echo '✅ Web Asli di port 8080' &&
+      echo '✅ WEB ASLI SIAP (172.20.0.20)' &&
       nginx -g 'daemon off;'
       "
 
-  # WEBSERVER PALSU
+  # WEBSITE PALSU
   web-palsu:
     image: nginx:alpine
     container_name: web-palsu
@@ -181,34 +176,11 @@ services:
       - "8081:80"
     command: >
       sh -c "
-      echo '✅ Web Palsu di port 8081' &&
+      echo '✅ WEB PALSU SIAP (172.20.0.30)' &&
       nginx -g 'daemon off;'
       "
 
-  # GATEWAY - router virtual
-  gateway:
-    image: alpine:latest
-    container_name: gateway
-    networks:
-      lab_network:
-        ipv4_address: 172.20.0.254
-    cap_add:
-      - NET_ADMIN
-    sysctls:
-      - net.ipv4.ip_forward=1
-    privileged: true
-    tty: true
-    stdin_open: true
-    command: >
-      sh -c "
-      echo 'Menjalankan gateway...' &&
-      echo 'IP Forwarding aktif' &&
-      echo 1 > /proc/sys/net/ipv4/ip_forward &&
-      echo '✅ Gateway siap di 172.20.0.254' &&
-      tail -f /dev/null
-      "
-
-  # PENYERANG - Kali Linux MINIMAL (hanya tools penting)
+  # PENYERANG - KALI LINUX
   penyerang:
     image: kalilinux/kali-rolling
     container_name: penyerang
@@ -221,14 +193,12 @@ services:
     privileged: true
     tty: true
     stdin_open: true
-    volumes:
-      - ./shared:/shared
     command: >
       bash -c "
       apt update &&
-      apt install -y --no-install-recommends dsniff tcpdump net-tools curl &&
+      apt install -y dsniff tcpdump net-tools curl &&
       echo 1 > /proc/sys/net/ipv4/ip_forward &&
-      echo '🔥 KALI MINIMAL READY - arpspoof & tcpdump siap 🔥' &&
+      echo '🔥 PENYERANG SIAP (172.20.0.100)' &&
       tail -f /dev/null
       "
 
