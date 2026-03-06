@@ -185,7 +185,7 @@ services:
       nginx -g 'daemon off;'
       "
 
-  # GATEWAY
+  # GATEWAY - router virtual
   gateway:
     image: alpine:latest
     container_name: gateway
@@ -201,10 +201,10 @@ services:
     stdin_open: true
     command: >
       sh -c "
-      apk add iptables &&
+      echo 'Menjalankan gateway...' &&
+      echo 'IP Forwarding aktif' &&
       echo 1 > /proc/sys/net/ipv4/ip_forward &&
-      iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE &&
-      echo '✅ Gateway siap' &&
+      echo '✅ Gateway siap di 172.20.0.254' &&
       tail -f /dev/null
       "
 
