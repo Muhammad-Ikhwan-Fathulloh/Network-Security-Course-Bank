@@ -112,8 +112,8 @@ graph TD
 ### Langkah 1: Buat Folder Proyek
 ```bash
 cd ~
-mkdir -p lab-arp-cepat
-cd lab-arp-cepat
+mkdir -p lab-arp
+cd lab-arp
 ```
 
 ### Langkah 2: Buat file docker-compose.yml (Versi Ringan)
