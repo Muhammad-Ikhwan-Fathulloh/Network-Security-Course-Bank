@@ -2,6 +2,8 @@
 
 Tujuan utama tugas ini adalah mensimulasikan skenario dunia nyata di mana penyerang (Kali Linux) melakukan pengujian penetrasi terhadap aplikasi web yang berjalan di platform cloud (Vercel) secara **black-box** (tanpa mengetahui kode sumber di baliknya).
 
+Gunakan Template ini untuk pengumpulan tugas: https://docs.google.com/document/d/1wN5IxH3eungsvaZVP67xxS8DcsW7USBlHjlRb5jWMLw/edit?usp=sharing
+
 #### **🎯 Tujuan Pembelajaran**
 1.  Mahir menyiapkan lingkungan serangan terisolasi dengan Docker.
 2.  Memahami tantangan menyerang target publik di internet (adanya WAF, CDN, dll).
