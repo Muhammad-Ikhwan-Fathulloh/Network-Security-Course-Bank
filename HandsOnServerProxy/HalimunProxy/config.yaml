@@ -1,0 +1,60 @@
+encryption:
+  aes_key: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  key: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  hmac_key: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  xor_key: 42
+  iv: "000102030405060708090a0b0c0d0e0f"
+  base32_alphabet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+  ttl_seconds: 300
+  algorithm: "AES-256-CBC"
+
+server:
+  host: "0.0.0.0"
+  port: 7878
+  admin_port: 7879
+  admin_api_key: "admin-secret-key"
+  telemetry_port: 7880
+
+services:
+  - name: "Users API"
+    type: "backend"
+    pattern: "users"
+    url: "http://php-backend-protected:80/api.php/users"
+    health: "/api.php/users"
+    timeout_ms: 5000
+  - name: "Config API"
+    type: "backend"
+    pattern: "config"
+    url: "http://php-backend-protected:80/api.php/config"
+    health: "/api.php/config"
+    timeout_ms: 5000
+  - name: "Sensitive Files"
+    type: "backend"
+    pattern: "sensitive"
+    url: "http://php-backend-protected:80/sensitive.php"
+    health: "/sensitive.php"
+    timeout_ms: 5000
+  - name: "Auth API"
+    type: "backend"
+    pattern: "auth"
+    url: "http://php-backend-protected:80/api.php/auth"
+    health: "/api.php/auth"
+    timeout_ms: 5000
+
+security:
+  rate_limit_per_minute: 600
+  burst_size: 20
+  blocked_networks:
+    - "127.0.0.0/8"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+  replay_protection_enabled: true
+  nonce_cache_size: 10000
+  nonce_ttl_seconds: 300
+  bypass_whitelist: []
+  strict_domain: false
+
+logging:
+  level: "debug"
+  format: "plain"

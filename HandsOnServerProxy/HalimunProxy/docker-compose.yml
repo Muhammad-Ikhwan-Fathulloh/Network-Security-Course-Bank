@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  backend-exposed:
+    build: ./backend-php
+    container_name: php-backend-exposed
+    ports:
+      - "5000:80"
+    networks:
+      - public-net
+
+  backend-php:
+    build: ./backend-php
+    container_name: php-backend-protected
+    expose:
+      - "80"
+    networks:
+      - internal-net
+
+  frontend:
+    build: ./frontend-js
+    container_name: js-frontend
+    expose:
+      - "80"
+    networks:
+      - internal-net
+
+  halimun-proxy:
+    image: ikhwan17/halimun-proxy:latest
+    container_name: halimun-proxy
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - RUST_LOG=debug
+      - CONFIG_PATH=/app/config.yaml
+    expose:
+      - "7878"
+    networks:
+      - internal-net
+    restart: unless-stopped
+
+  nginx-gateway:
+    image: nginx:alpine
+    container_name: nginx-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd
+    depends_on:
+      - frontend
+      - halimun-proxy
+    networks:
+      - internal-net
+      - public-net
+
+networks:
+  public-net:
+    driver: bridge
+  internal-net:
+    driver: bridge
+    internal: true

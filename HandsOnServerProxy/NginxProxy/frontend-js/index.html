@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Keamanan Proxy vs No Proxy</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .danger-card h2 {
+            background-color: #ff6b6b;
+            color: white;
+        }
+
+        .safe-card h2 {
+            background-color: #4ecdc4;
+            color: white;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: #ff6b6b;
+            color: white;
+        }
+
+        .btn-safe {
+            background-color: #4ecdc4;
+            color: white;
+        }
+
+        .output {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .status-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .test-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Simulasi Keamanan: Backend PHP dengan dan tanpa Reverse Proxy</h1>
+
+        <div class="grid">
+            <div class="card danger-card">
+                <h2>Skenario 1: Backend Langsung (Tanpa Proxy)</h2>
+                <p>Backend terekspos di port <strong>5000</strong> - SANGAT BERBAHAYA</p>
+                <button class="btn-danger" onclick="testDirectAPI()">Test API Langsung</button>
+                <button class="btn-danger" onclick="testDirectConfig()">Akses Konfigurasi</button>
+                <button class="btn-danger" onclick="testDirectSensitive()">Akses File Sensitif</button>
+                <button class="btn-danger" onclick="testDirectSQLInjection()">Test SQL Injection</button>
+                <div id="output-direct" class="output">Klik tombol di atas untuk melihat hasil...</div>
+            </div>
+
+            <div class="card safe-card">
+                <h2>Skenario 2: Backend via Nginx Proxy</h2>
+                <p>Backend dilindungi proxy di port <strong>8080</strong> - AMAN</p>
+                <button class="btn-safe" onclick="testProxyAPI()">Test API via Proxy</button>
+                <button class="btn-safe" onclick="testProxyConfig()">Akses Konfigurasi</button>
+                <button class="btn-safe" onclick="testProxySensitive()">Akses File Sensitif</button>
+                <button class="btn-safe" onclick="testProxySQLInjection()">Test SQL Injection</button>
+                <div id="output-proxy" class="output">Klik tombol di atas untuk melihat hasil...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Simulasi Serangan DDoS</h2>
+            <button class="btn-danger" onclick="startDDoSDirect()">Serang Backend Langsung (1000 request)</button>
+            <button class="btn-safe" onclick="startDDoSProxy()">Serang via Proxy (1000 request)</button>
+            <div id="ddos-status" class="status status-info"></div>
+            <div id="ddos-result" class="output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Informasi Sistem</h3>
+            <p>Perhatikan perbedaan response antara kedua skenario:</p>
+            <ul>
+                <li>Backend langsung mengekspos informasi sensitif (password, konfigurasi)</li>
+                <li>Proxy memfilter dan memblokir akses ke file berbahaya</li>
+                <li>Rate limiting pada proxy melindungi dari serangan DDoS</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
