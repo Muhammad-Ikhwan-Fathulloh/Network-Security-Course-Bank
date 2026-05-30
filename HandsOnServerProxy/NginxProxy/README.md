@@ -26,11 +26,57 @@ Lab ini menyimulasikan penggunaan Nginx sebagai Reverse Proxy untuk memperkuat k
 | **Nginx Status**   | `Internal Only`              | Digunakan untuk monitoring (Stub Status) |
 
 
-## Cara Menjalankan (Instalasi)
+## Arsitektur Lab
 
-1.  Pastikan Anda memiliki **Docker** dan **Docker Compose** terinstal.
-2.  Buka terminal di folder `NginxProxy`.
-3.  Jalankan perintah berikut untuk membangun dan menjalankan semua container:
+```mermaid
+graph TD
+    User([User/Attacker]) -->|HTTP Port 8080| Nginx[Nginx Reverse Proxy]
+    User -.->|HTTP Port 5000| Exposed[Backend Exposed - Rentan]
+    
+    subgraph "Docker Network (Isolated)"
+    Nginx -->|Lapis 1: Filtering| Protected[Backend Protected]
+    Nginx -->|Static Files| JS[Frontend JS Dashboard]
+    end
+```
+
+## Panduan Instalasi untuk Pemula (Step-by-Step)
+
+Jika Anda baru pertama kali menggunakan Docker, ikuti langkah-langkah di bawah ini:
+
+### Langkah 1: Persiapan Software
+1.  **Unduh & Install Docker Desktop**:
+    - Pergi ke [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+    - Pilih versi sesuai OS Anda (Windows/Mac/Linux).
+    - Install dan **jalankan** Docker Desktop hingga ikon paus di pojok bawah berwarna hijau.
+
+### Langkah 2: Mengunduh File Lab
+1.  Klik tombol **Code** (hijau) di bagian atas repository ini dan pilih **Download ZIP**.
+2.  Ekstrak file ZIP tersebut ke folder di komputer Anda (misal: `C:\Security-Lab\`).
+
+### Langkah 3: Membuat Server Berjalan
+1.  Buka terminal/command prompt:
+    - **Windows**: Tekan tombol `Win + R`, ketik `cmd`, lalu Enter.
+    - **Mac/Linux**: Buka aplikasi `Terminal`.
+2.  Masuk ke folder lab menggunakan perintah `cd` (Ganti path sesuai lokasi Anda):
+    ```bash
+    cd "C:\Security-Lab\Network-Security-Course-Bank\HandsOnServerProxy\NginxProxy"
+    ```
+3.  Jalankan perintah ajaib ini:
+    ```bash
+    docker-compose up -d --build
+    ```
+    *Artinya: Mempersiapkan semua kontainer dan menjalankannya di latar belakang.*
+
+### Langkah 4: Verifikasi
+1.  Tunggu hingga proses download selesai dan muncul tulisan `Started`.
+2.  Buka browser Anda dan ketik: `http://localhost:8080`
+3.  Jika muncul dashboard simulasi, selamat! Lab Anda sudah siap digunakan.
+
+---
+
+## Cara Menjalankan (Instruksi Manual)
+1.  Buka terminal di folder `NginxProxy`.
+2.  Jalankan:
     ```bash
     docker-compose up -d --build
     ```
@@ -74,27 +120,56 @@ Gunakan `curl` untuk melihat bagaimana Nginx memproses request di level HTTP.
     ```
     *Analisis: Bandingkan header `Server`. Versi asli (Apache/PHP) disembunyikan oleh Nginx.*
 
-### 2. Simulasi Serangan Advanced (Kali Linux)
-Gunakan tools penetrasi untuk menguji ketahanan Nginx terhadap serangan otomatis.
+### 2. Panduan Simulasi Penetrasi (Kali Linux)
+Gunakan tools penetrasi standar industri untuk menguji ketahanan Nginx terhadap serangan otomatis. Skenario ini akan menunjukkan mengapa "security by obscurity" saja tidak cukup.
 
-**Langkah-langkah:**
-1.  Pastikan semua container sudah berjalan.
-2.  Jalankan container Kali Linux di network yang sama:
-    ```bash
-    docker run --rm -it --network nginxproxy_public-net kalilinux/kali-rolling /bin/bash
-    ```
-3.  Di dalam container Kali, perbarui package list dan install `sqlmap`:
-    ```bash
-    apt update && apt install -y sqlmap
-    ```
-4.  Jalankan `sqlmap` ke arah Nginx Gateway:
-    ```bash
-    sqlmap -u "http://nginx-gateway/api/users?id=1" --batch --banner
-    ```
-5.  **Observasi**:
-    -   Lihat output `sqlmap`. Apakah ia berhasil menemukan database?
-    -   Lihat log Nginx secara bersamaan di terminal lain: `docker logs -f nginx-gateway`.
-    -   *Kesimpulan: sqlmap akan gagal mengeksploitasi karena Nginx memutus koneksi saat mendeteksi pola scanning.*
+**Langkah 1: Menjalankan Container Kali Linux**
+Buka terminal baru (pastikan berada di folder `NginxProxy`) dan jalankan container Kali yang akan bergabung ke jaringan Docker lab:
+```bash
+docker run --rm -it --network nginxproxy_public-net kalilinux/kali-rolling /bin/bash
+```
+
+**Langkah 2: Menyiapkan Tools (Reconnaissance)**
+Di dalam terminal Kali, perbarui repositori dan install tools yang diperlukan:
+```bash
+apt update && apt install -y nmap sqlmap curl
+```
+
+**Langkah 3: Scanning Target (Nmap)**
+Mari cari tahu port apa saja yang terbuka pada gateway kita:
+```bash
+# Scan port pada Nginx Gateway
+nmap -F nginx-gateway
+
+# Scan port pada Backend yang terekspos (Direct)
+nmap -F php-backend-exposed
+```
+*Analisis: Bandingkan hasilnya. Meskipun keduanya memiliki port terbuka, Nginx akan menyaring trafik yang masuk ke port tersebut.*
+
+**Langkah 4: Pengujian Header (Vulnerability Research)**
+Cek informasi teknis server yang bocor:
+```bash
+# Cek backend langsung
+curl -I http://php-backend-exposed
+
+# Cek via Nginx Proxy
+curl -I http://nginx-gateway/api/users
+```
+*Analisis: Lihat header `Server` dan `X-Powered-By`. Nginx menyembunyikan versi asli backend untuk mempersulit attacker.*
+
+**Langkah 5: Serangan SQL Injection (Exploitation)**
+Gunakan `sqlmap` untuk mencoba mengambil data dari database:
+```bash
+# Serang backend langsung (Pasti Berhasil/Vulnerable)
+sqlmap -u "http://php-backend-exposed/api.php/users?id=1" --batch --banner
+
+# Serang via Nginx Gateway (Akan Gagal/Forbidden)
+sqlmap -u "http://nginx-gateway/api/users?id=1" --batch --banner
+```
+
+**Observasi Hasil:**
+1.  **Direct Attack**: `sqlmap` akan mendeteksi celah dan berhasil menampilkan informasi database.
+2.  **Proxy Attack**: Nginx akan merespons dengan `400 Bad Request` atau `403 Forbidden` saat mendeteksi pola serangan, sehingga `sqlmap` tidak bisa menemukan celah.
 
 ### 3. Menggunakan Postman
 1.  Buat request `GET` ke `http://localhost:8080/api/config`.

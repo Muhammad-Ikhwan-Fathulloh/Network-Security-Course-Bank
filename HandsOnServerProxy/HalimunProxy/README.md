@@ -30,15 +30,61 @@ Lab ini menyimulasikan penggunaan **Halimun-Proxy**, sebuah Reverse Proxy terenk
 
 *Kredensial Basic Auth: **admin** / **admin***
 
-## Cara Menjalankan (Instalasi)
+## Arsitektur Lab
 
-1.  Pastikan Anda memiliki **Docker** dan **Docker Compose**.
-2.  Buka terminal di folder `HalimunProxy`.
-3.  Jalankan perintah berikut:
+```mermaid
+graph TD
+    User([User/Attacker]) -->|HTTP Port 8080| NG[Nginx Gateway]
+    User -.->|HTTP Port 5000| Exposed[Backend Exposed - Rentan]
+    
+    subgraph "Internal Security Network"
+    NG -->|Auth & Rate Limit| HP[Halimun Proxy - Rust]
+    HP -->|Decrypt & Validate Nonce| Protected[Backend Protected]
+    NG -->|Static Files| JS[Frontend JS - Halimun Crypto]
+    end
+```
+
+## Panduan Instalasi untuk Pemula (Step-by-Step)
+
+Lab ini sedikit lebih kompleks karena menggunakan enkripsi. Ikuti langkah-langkah berikut agar tidak bingung:
+
+### Langkah 1: Persiapan Software
+1.  **Unduh & Install Docker Desktop**:
+    - Pergi ke [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+    - Install dan jalankan hingga aplikasi Docker aktif dan siap.
+
+### Langkah 2: Mengunduh File Lab
+1.  Unduh repository ini (Klik **Code** -> **Download ZIP**) dan ekstrak file-nya di tempat yang mudah ditemukan, misalnya di `C:\Security-Lab\`.
+
+### Langkah 3: Menjalankan Kontainer
+1.  Buka terminal/CMD.
+2.  Masuk ke direktori lab Halimun:
+    ```bash
+    cd "C:\Security-Lab\Network-Security-Course-Bank\HandsOnServerProxy\HalimunProxy"
+    ```
+3.  Ketik perintah berikut untuk membangun seluruh sistem:
     ```bash
     docker-compose up -d --build
     ```
-4.  Buka browser dan akses Dashboard Lab di: `http://localhost:8080`
+    *Halimun-Proxy menggunakan bahasa Rust, jadi proses 'building' pertama kali mungkin memakan waktu 1-2 menit.*
+
+### Langkah 4: Cara Mengakses
+1.  Buka browser ke: `http://localhost:8080`
+2.  Jika muncul kotak dialog login, masukkan:
+    - **Username**: `admin`
+    - **Password**: `admin`
+3.  Anda sekarang berada di dashboard **Halimun-Proxy**.
+
+---
+
+## Cara Menjalankan (Instalasi Manual)
+
+1.  Pastikan Docker sudah terinstal.
+2.  Buka terminal di folder `HalimunProxy`.
+3.  Jalankan perintah:
+    ```bash
+    docker-compose up -d --build
+    ```
 
 ## Skenario Pengujian
 
@@ -70,23 +116,47 @@ Coba akses jalur proxy tanpa enkripsi menggunakan `curl`:
     ```
     *Analisis: Perhatikan pada port 5000 informasi server (PHP/Apache) terekspos, sedangkan pada 8080 informasi tersebut disembunyikan.*
 
-### 4. Simulasi Serangan Advanced (Kali Linux)
-Gunakan tool penetrasi untuk melihat respons Halimun-Proxy terhadap scanning.
+### 4. Panduan Simulasi Penetrasi (Kali Linux)
+Gunakan Kali Linux untuk membuktikan bahwa scanner otomatis tidak berdaya melawan Reverse Proxy terenkripsi seperti Halimun.
 
-**Langkah-langkah:**
-1.  Jalankan container Kali Linux di network yang sama:
-    ```bash
-    docker run --rm -it --network halimunproxy_public-net kalilinux/kali-rolling /bin/bash
-    ```
-2.  Install `sqlmap` di dalam Kali:
-    ```bash
-    apt update && apt install -y sqlmap
-    ```
-3.  Jalankan `sqlmap` ke endpoint proxy:
-    ```bash
-    sqlmap -u "http://nginx-gateway/proxy/1/ANY" --method=POST --data="x=payload" --batch
-    ```
-    *Observasi: sqlmap akan gagal total karena ia tidak bisa melakukan enkripsi AES-256-CBC yang sesuai dengan kunci yang dipegang proxy.*
+**Langkah 1: Menjalankan Container Kali Linux**
+Buka terminal baru di folder `HalimunProxy` dan jalankan:
+```bash
+docker run --rm -it --network halimunproxy_public-net kalilinux/kali-rolling /bin/bash
+```
+
+**Langkah 2: Menyiapkan Tools**
+Di dalam terminal Kali, install tool dasar untuk pengujian:
+```bash
+apt update && apt install -y nmap sqlmap curl
+```
+
+**Langkah 3: Scanning Target (Nmap)**
+Cek port yang terlihat dari jaringan publik:
+```bash
+# Scan port pada Nginx Gateway
+nmap -F nginx-gateway
+
+# Scan port pada Backend yang terekspos (Direct)
+nmap -F php-backend-exposed
+```
+*Hasil: Nmap akan mendeteksi kedua host, namun port internal Halimun (7878) tetap tersembunyi dari jaringan luar.*
+
+**Langkah 4: Serangan Bruteforce API (Simulasi SQLmap)**
+Mari kita lihat bagaimana `sqlmap` bereaksi terhadap jalur proxy yang mewajibkan enkripsi:
+```bash
+# Serang backend langsung (Vulnerable)
+sqlmap -u "http://php-backend-exposed/api.php/users?id=1" --batch --banner
+
+# Serang via Halimun Proxy (Melalui Nginx)
+# Perhatikan: Kita harus masukkan Basic Auth
+sqlmap -u "http://nginx-gateway/proxy/1/ANY" --headers="Authorization: Basic YWRtaW46YWRtaW4=" --method=POST --data="x=test" --batch
+```
+
+**Observasi & Analisis:**
+1.  **Direct Attack**: `sqlmap` dengan mudah mengeksploitasi parameter `id` pada backend langsung.
+2.  **Halimun Proxy Attack**: `sqlmap` akan gagal total. Hal ini karena Halimun-Proxy menolak semua payload yang tidak terenkripsi menggunakan kunci AES-256-CBC yang valid. Scanner otomatis tidak bisa melakukan "fuzzing" karena setiap request yang ia kirim akan dianggap sampah (invalid encryption format) oleh proxy.
+3.  **WAF Blocking**: Jika `sqlmap` mencoba mengirim karakter aneh ke root URL `/`, Nginx juga memiliki filter dasar yang bisa memblokirnya.
 
 ### 5. Menggunakan Postman
 1.  Ambil payload terenkripsi (parameter `x`) dari console browser Dashboard Lab.
