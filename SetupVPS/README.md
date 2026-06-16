@@ -54,6 +54,12 @@ Setelah login:
 
 Untuk kebutuhan workshop dan praktik EasyPanel, disarankan melakukan top up minimal:
 
+![Step](/Sumopod/CreateVPS/create-vps%20(1).png)
+
+![Step](/Sumopod/CreateVPS/create-vps%20(2).png)
+
+![Step](/Sumopod/CreateVPS/create-vps%20(3).png)
+
 ✅ **Rp60.000**
 
 Metode pembayaran yang tersedia:
@@ -74,9 +80,13 @@ Masuk ke dashboard lalu klik:
 
 **Create VPS** atau **Order VPS**
 
+![Step](/Sumopod/CreateVPS/create-vps%20(4).png)
+
 ## Langkah 2: Pilih Paket VPS
 
 Pilih provider **Tencent Cloud** dengan lokasi **Singapore**.
+
+![Step](/Sumopod/CreateVPS/create-vps%20(5).png)
 
 ### Pilihan Paket Tencent Cloud
 
@@ -88,6 +98,8 @@ Pilih provider **Tencent Cloud** dengan lokasi **Singapore**.
 | 2 vCPU | 4 GB | 70 GB   | 2.05 TB (30 Mbps) | Rp125.000  |
 | 2 vCPU | 8 GB | 80 GB   | 2.56 TB (30 Mbps) | Rp150.000  |
 | 2 vCPU | 8 GB | 100 GB  | 3.07 TB (30 Mbps) | Rp185.000  |
+
+![Step](/Sumopod/CreateVPS/create-vps%20(6).png)
 
 ### Paket yang Direkomendasikan
 
@@ -138,6 +150,8 @@ Status server akan berubah dari:
 
 **Pending → Active**
 
+![Step](/Sumopod/CreateVPS/create-vps%20(7).png)
+
 ---
 
 # 5️⃣ Ambil Informasi VPS
@@ -176,6 +190,8 @@ Jika berhasil akan muncul tampilan:
 ubuntu@vps:~$
 ```
 
+![Step](/Sumopod/CreateVPS/create-vps%20(8).png)
+
 ---
 
 # 7️⃣ Install EasyPanel
@@ -188,6 +204,8 @@ Jalankan:
 sudo su
 ```
 
+![Step](/Sumopod/CreateVPS/create-vps%20(9).png)
+
 ## Langkah 2: Install Docker
 
 Jalankan:
@@ -195,6 +213,10 @@ Jalankan:
 ```bash
 apt-get update && apt-get install -y docker.io docker-compose
 ```
+
+![Step](/Sumopod/CreateVPS/create-vps%20(10).png)
+
+![Step](/Sumopod/CreateVPS/create-vps%20(11).png)
 
 Tunggu hingga proses selesai.
 
@@ -206,6 +228,8 @@ Jalankan:
 curl -sSL https://get.easypanel.io | sh
 ```
 
+![Step](/Sumopod/CreateVPS/create-vps%20(12).png)
+
 Proses instalasi membutuhkan waktu sekitar 5–10 menit.
 
 Tunggu hingga muncul pesan:
@@ -213,6 +237,8 @@ Tunggu hingga muncul pesan:
 ```text
 Easypanel installed successfully
 ```
+
+![Step](/Sumopod/CreateVPS/create-vps%20(13).png)
 
 ---
 
@@ -242,6 +268,8 @@ Pada halaman setup pertama kali, isi:
 * Password
 * Confirm Password
 
+![Step](/Sumopod/CreateVPS/create-vps%20(14).png)
+
 Pada bagian:
 
 **How did you find Easypanel?**
@@ -266,3 +294,7 @@ Masukkan:
 Klik:
 
 **Login**
+
+![Step](/Sumopod/CreateVPS/create-vps%20(15).png)
+
+![Step](/Sumopod/CreateVPS/create-vps%20(16).png)
