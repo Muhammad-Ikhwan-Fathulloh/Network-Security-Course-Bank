@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend-php
+    container_name: project1-backend
+    ports:
+      - "8000:80"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend-js
+    container_name: project1-frontend
+    ports:
+      - "8080:80"
+    restart: unless-stopped

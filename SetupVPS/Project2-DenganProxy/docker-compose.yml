@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend-php
+    container_name: project2-backend
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  frontend:
+    build: ./frontend-js
+    container_name: project2-frontend
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: project2-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-proxy/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - internal
+      - public
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  public:
+    driver: bridge
