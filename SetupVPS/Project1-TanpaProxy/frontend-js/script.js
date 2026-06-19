@@ -1,10 +1,11 @@
-const API_URL = window.location.protocol + '//' + window.location.hostname + ':8000';
+// const API_URL = window.location.protocol + '//' + window.location.hostname + ':8000';
+const API_URL = 'https://backend-test-php-backend-test-php.bnv1ft.easypanel.host/';
 
 async function fetchProducts() {
     try {
         const response = await fetch(`${API_URL}/api/products`);
         const data = await response.json();
-        
+
         if (data.success) {
             displayProducts(data.data);
         } else {
@@ -19,7 +20,7 @@ async function fetchServerInfo() {
     try {
         const response = await fetch(`${API_URL}/api/info`);
         const data = await response.json();
-        
+
         if (data.success) {
             document.getElementById('server-type').textContent = data.data.server;
             document.getElementById('server-mode').textContent = data.data.mode;
@@ -34,9 +35,9 @@ async function fetchServerInfo() {
 function displayProducts(products) {
     const container = document.getElementById('products');
     const loading = document.getElementById('loading');
-    
+
     loading.style.display = 'none';
-    
+
     products.forEach(product => {
         const card = document.createElement('div');
         card.className = 'product-card';
@@ -51,7 +52,7 @@ function displayProducts(products) {
 function showError(message) {
     const loading = document.getElementById('loading');
     const error = document.getElementById('error');
-    
+
     loading.style.display = 'none';
     error.style.display = 'block';
     error.textContent = message;
