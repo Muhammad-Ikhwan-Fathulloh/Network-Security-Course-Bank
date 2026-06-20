@@ -1,11 +1,13 @@
 # Project 2: Dengan Nginx Proxy
 
-Proyek ini menunjukkan deploy aplikasi web dengan **Nginx sebagai reverse proxy** di depan frontend dan backend. Backend tidak terekspos langsung ke publik.
+Proyek ini menunjukkan deploy aplikasi web dengan **Nginx sebagai reverse proxy** di depan frontend dan backend. Aplikasi memiliki fitur register, login, dan melihat profil user dengan autentikasi JWT dan database MySQL. Backend tidak terekspos langsung ke publik.
 
 ## Arsitektur
 
 ```
 User → Nginx Proxy (Port 80) → Frontend / Backend
+                                    ↓
+                              MySQL Database
 ```
 
 ## Komponen
@@ -13,6 +15,7 @@ User → Nginx Proxy (Port 80) → Frontend / Backend
 1. **Nginx Proxy**: Gerbang utama yang menangani semua request
 2. **Backend**: PHP Native (Apache) - hanya bisa diakses via proxy
 3. **Frontend**: JavaScript Native (Nginx) - hanya bisa diakses via proxy
+4. **Database**: MySQL untuk menyimpan data user
 
 ## Cara Deploy ke VPS dengan EasyPanel
 
@@ -42,7 +45,7 @@ User → Nginx Proxy (Port 80) → Frontend / Backend
 5. **Verifikasi Container Berjalan**
    ```bash
    docker ps
-   # Seharusnya melihat project2-nginx, project2-backend, project2-frontend
+   # Seharusnya melihat project2-database, project2-nginx, project2-backend, project2-frontend
    ```
 
 6. **Tambahkan ke EasyPanel (Opsional)**
@@ -66,7 +69,7 @@ User → Nginx Proxy (Port 80) → Frontend / Backend
    - Upload `project2.zip`
    - EasyPanel akan otomatis mendeteksi `docker-compose.yml`
    - Konfigurasi:
-     - **Name**: `toko-online-proxy`
+     - **Name**: `auth-app-dengan-proxy`
    - Klik **Create**
 
 3. **Tunggu Deploy Selesai**
@@ -78,12 +81,11 @@ User → Nginx Proxy (Port 80) → Frontend / Backend
 ### Langkah Akhir: Akses Aplikasi
 
 Akses melalui domain yang diberikan EasyPanel atau langsung via IP VPS:
-- `https://toko-online-proxy.yourdomain.com` atau `http://IP_VPS_ANDA`
+- `https://auth-app-dengan-proxy.yourdomain.com` atau `http://IP_VPS_ANDA`
 
 Semua request (frontend dan API) melalui URL yang sama!
 - Frontend: `/`
-- API: `/api/products`
-- Info Server: `/api/info`
+- API: `/api/register`, `/api/login`, `/api/profile`
 
 ---
 
@@ -92,6 +94,9 @@ Semua request (frontend dan API) melalui URL yang sama!
 ```bash
 # Melihat container yang berjalan
 docker ps
+
+# Melihat log database
+docker logs project2-database
 
 # Melihat log Nginx
 docker logs project2-nginx
