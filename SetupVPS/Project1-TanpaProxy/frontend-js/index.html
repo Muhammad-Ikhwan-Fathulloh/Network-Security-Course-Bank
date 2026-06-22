@@ -1,219 +1,413 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auth App - Tanpa Proxy</title>
+    <title>Sistem Kasir v2 - Unified</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
+
         .container {
-            width: 100%;
-            max-width: 450px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        header {
-            background: white;
+
+        /* Auth Styles */
+        .auth-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: var(--card);
             padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            text-align: center;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 24px;
-        }
-        .status {
-            display: inline-block;
-            padding: 6px 14px;
-            background: #e0f2fe;
-            color: #0369a1;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        .auth-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-        .tabs {
+
+        .tab-buttons {
             display: flex;
-            margin-bottom: 25px;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        .tab {
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 600;
-            color: #6b7280;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-        .form-group {
+            border-bottom: 1px solid #e2e8f0;
             margin-bottom: 20px;
         }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #374151;
-            font-weight: 500;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 15px;
-            transition: border-color 0.3s;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn {
-            width: 100%;
-            padding: 14px;
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
+            background: none;
             cursor: pointer;
-            transition: background 0.3s;
+            font-weight: 600;
+            color: var(--secondary);
+            transition: 0.3s;
         }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Dashboard Styles */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            height: fit-content;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .nav-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 12px 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .nav-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .main-content {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* POS Utility */
+        .grid-pos {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .product-card {
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .product-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .cart-section {
+            border-left: 1px solid #e2e8f0;
+            padding-left: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             color: white;
         }
+
         .btn-primary:hover {
-            opacity: 0.9;
+            background: var(--primary-dark);
         }
-        .btn-logout {
-            background: #ef4444;
+
+        .btn-danger {
+            background: var(--danger);
             color: white;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #message-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            transition: 0.5s;
+        }
+
+        .toast-success {
+            background: var(--success);
+        }
+
+        .toast-error {
+            background: var(--danger);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
             margin-top: 15px;
         }
-        .error {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .success {
-            background: #dcfce7;
-            color: #166534;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .profile-card {
-            text-align: center;
-        }
-        .profile-card h2 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .profile-info {
+
+        th,
+        td {
             text-align: left;
-            margin-bottom: 20px;
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
         }
-        .profile-info p {
-            padding: 10px 0;
-            color: #4b5563;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .profile-info strong {
-            color: #111827;
-        }
-        .hidden {
-            display: none;
-        }
-        .loading {
-            text-align: center;
-            color: #667eea;
-            padding: 20px;
+
+        th {
+            background: #f8fafc;
+            color: var(--secondary);
+            font-size: 0.85rem;
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <header>
-            <h1>🔐 Aplikasi Auth</h1>
-            <span class="status">Mode: Tanpa Proxy</span>
-        </header>
+    <div id="message-toast" class="hidden"></div>
 
-        <div class="auth-card">
-            <div id="auth-section">
-                <div class="tabs">
-                    <div class="tab active" data-tab="login">Login</div>
-                    <div class="tab" data-tab="register">Register</div>
+    <!-- AUTH SECTION -->
+    <div id="auth-section" class="auth-container">
+        <h1 style="text-align: center; margin-bottom: 20px; font-size: 1.5rem;">Sistem Kasir 🛒</h1>
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchAuthTab('login')">Login</button>
+            <button class="tab-btn" onclick="switchAuthTab('register')">Daftar</button>
+        </div>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="login-username" required placeholder="User admin">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Masuk ke Kasir</button>
+        </form>
+
+        <form id="register-form" class="hidden">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="register-username" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="register-email" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="register-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Daftar Kasir Baru</button>
+        </form>
+    </div>
+
+    <!-- DASHBOARD SECTION -->
+    <div id="dashboard-section" class="container hidden">
+        <div class="dashboard">
+            <aside class="sidebar">
+                <h2>Kasir Panel</h2>
+                <button class="nav-btn active" onclick="showDashboard('pos')">🛒 Kasir (POS)</button>
+                <button class="nav-btn" onclick="showDashboard('inventory')">📦 Inventori</button>
+                <button class="nav-btn" onclick="showDashboard('history')">📜 Riwayat</button>
+                <div style="margin-top: 50px;">
+                    <p id="user-display" style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 10px;"></p>
+                    <button class="btn btn-danger" onclick="logout()"
+                        style="width:100%; font-size: 0.8rem;">Keluar</button>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <!-- POS MODULE -->
+                <div id="pos-module">
+                    <h1 style="margin-bottom: 20px;">Terminal Penjualan</h1>
+                    <div class="grid-pos">
+                        <div class="products-list-wrapper">
+                            <div class="form-group">
+                                <input type="text" placeholder="Cari barang..." id="search-product">
+                            </div>
+                            <div id="pos-product-grid" class="product-grid">
+                                <!-- Berisi produk -->
+                            </div>
+                        </div>
+                        <div class="cart-section">
+                            <h3>Keranjang Belanja</h3>
+                            <div id="cart-items" style="margin: 20px 0; min-height: 200px;">
+                                <p style="color: grey; text-align: center;">Kosong</p>
+                            </div>
+                            <div style="border-top: 2px solid #f1f5f9; padding-top: 15px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2rem; margin-bottom: 15px;">
+                                    <span>Total:</span>
+                                    <span id="cart-total">Rp 0</span>
+                                </div>
+                                <button class="btn btn-primary" onclick="processCheckout()" style="width:100%">Bayar &
+                                    Cetak</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="message"></div>
+                <!-- INVENTORY MODULE -->
+                <div id="inventory-module" class="hidden">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                        <h1>Manajemen Inventori</h1>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-secondary" style="background:#64748b; color:white;"
+                                onclick="toggleCategorySection()">🏷️ Kategori</button>
+                            <button class="btn btn-primary" onclick="toggleProductForm()">+ Tambah Produk</button>
+                        </div>
+                    </div>
 
-                <form id="login-form">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <input type="text" id="login-username" required>
+                    <!-- CATEGORY MANAGEMENT -->
+                    <div id="category-section" class="hidden"
+                        style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3>Kelola Kategori</h3>
+                        <form id="category-form" style="display:flex; gap:10px; margin: 15px 0;">
+                            <input type="text" id="cat-name" placeholder="Nama Kategori Baru..." required
+                                style="flex:1;">
+                            <button type="submit" class="btn btn-primary">Tambah</button>
+                        </form>
+                        <div id="category-list" style="display:flex; flex-wrap:wrap; gap:8px;">
+                            <!-- List kategori dgn tombol hapus -->
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="login-password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Login</button>
-                </form>
 
-                <form id="register-form" class="hidden">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <input type="text" id="register-username" required>
+                    <div id="product-form-container" class="hidden"
+                        style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <form id="product-form">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group">
+                                    <label>Nama Barang</label>
+                                    <input type="text" id="prod-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Kategori</label>
+                                    <select id="prod-category"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Harga Jual</label>
+                                    <input type="number" id="prod-price" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Stok Awal</label>
+                                    <input type="number" id="prod-stock" required value="0">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Simpan Barang</button>
+                        </form>
                     </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="register-email" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="register-password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Register</button>
-                </form>
-            </div>
 
-            <div id="profile-section" class="hidden">
-                <div class="profile-card">
-                    <h2>Selamat Datang!</h2>
-                    <div id="loading-profile" class="loading">Memuat profil...</div>
-                    <div id="profile-info" class="profile-info hidden"></div>
-                    <button id="logout-btn" class="btn btn-logout">Logout</button>
+                    <table id="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Kategori</th>
+                                <th>Harga</th>
+                                <th>Stok</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-body"></tbody>
+                    </table>
                 </div>
-            </div>
+
+                <!-- HISTORY MODULE -->
+                <div id="history-module" class="hidden">
+                    <h1 style="margin-bottom: 20px;">Riwayat Transaksi</h1>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Tx</th>
+                                <th>Waktu</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body"></tbody>
+                    </table>
+                </div>
+            </main>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>

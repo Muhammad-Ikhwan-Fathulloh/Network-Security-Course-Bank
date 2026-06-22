@@ -1,41 +1,15 @@
 version: '3.8'
 
 services:
-  database:
-    image: mysql:8.0
-    container_name: project1-database
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: userdb
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-    volumes:
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - db_data1:/var/lib/mysql
-    ports:
-      - "3307:3306"
-    restart: unless-stopped
-
-  backend:
-    build: ./backend-php
-    container_name: project1-backend
+  app:
+    image: ikhwan17/project1-unified:latest
     ports:
       - "8001:80"
-    depends_on:
-      - database
-    environment:
-      DB_HOST: database
-      DB_NAME: userdb
-      DB_USER: user
-      DB_PASS: password
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend-js
-    container_name: project1-frontend
-    ports:
-      - "8081:80"
+    volumes:
+      - project1_db:/var/lib/sqlite # Path dummy untuk konsistensi, SQLite file ada di internal /var/www/html/database
+      # Sebenarnya SQLite ada di dalam image, tapi untuk persistensi di EasyPanel:
+      - ./database:/var/www/html/database
     restart: unless-stopped
 
 volumes:
-  db_data1:
+  project1_db:
