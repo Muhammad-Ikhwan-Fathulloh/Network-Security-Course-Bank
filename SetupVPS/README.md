@@ -9,6 +9,8 @@ Pada tutorial ini, Anda akan belajar:
 * Membuat VPS Ubuntu
 * Menginstall EasyPanel
 * Login ke Dashboard EasyPanel
+* Menginstall Dokploy
+* Login ke Dashboard Dokploy
 
 Estimasi waktu: **15–20 menit**
 
@@ -298,3 +300,88 @@ Klik:
 ![Step](/Sumopod/CreateVPS/create-vps%20(15).png)
 
 ![Step](/Sumopod/CreateVPS/create-vps%20(16).png)
+
+---
+
+# 1️⃣1️⃣ Install Dokploy (Alternatif dari EasyPanel)
+
+Jika Anda ingin menggunakan **Dokploy** sebagai panel deployment (alternatif dari EasyPanel), gunakan alur yang sama seperti pembuatan VPS di atas (Langkah 1️⃣ – 6️⃣: Daftar Sumopod, Top Up Saldo, Buat VPS, Tunggu Aktif, Ambil Info VPS, Login SSH), lalu lanjutkan dengan langkah berikut.
+
+> ⚠️ Catatan: Dokploy dan EasyPanel sama-sama menggunakan port **3000** secara default. Jangan install keduanya pada VPS yang sama kecuali salah satu port dashboard diubah, agar tidak bentrok.
+
+## Langkah 1: Masuk Sebagai Root
+
+Jalankan:
+
+```bash
+sudo su
+```
+
+## Langkah 2: Install Docker
+
+Jika Docker belum terpasang, jalankan:
+
+```bash
+apt-get update && apt-get install -y docker.io docker-compose
+```
+
+Tunggu hingga proses selesai.
+
+## Langkah 3: Install Dokploy
+
+Jalankan:
+
+```bash
+curl -sSL https://dokploy.com/install.sh | sh
+```
+
+Proses instalasi membutuhkan waktu sekitar 5–10 menit.
+
+Tunggu hingga muncul pesan bahwa instalasi Dokploy berhasil dan URL dashboard ditampilkan di terminal.
+
+---
+
+# 1️⃣2️⃣ Akses Dashboard Dokploy
+
+Buka browser lalu akses:
+
+```text
+http://IP_VPS_ANDA:3000
+```
+
+Contoh:
+
+```text
+http://123.123.123.123:3000
+```
+
+Jika muncul halaman setup Dokploy berarti instalasi berhasil.
+
+---
+
+# 1️⃣3️⃣ Buat Akun Administrator Dokploy
+
+Pada halaman setup pertama kali, isi:
+
+* Email
+* Password
+* Confirm Password
+
+Kemudian klik:
+
+**Create Account** / **Setup**
+
+---
+
+# 1️⃣4️⃣ Login ke Dashboard Dokploy
+
+Masukkan:
+
+* Email yang dibuat sebelumnya
+* Password Dokploy
+
+Klik:
+
+**Login**
+
+Setelah berhasil login, Anda akan diarahkan ke dashboard Dokploy dan siap melakukan deployment aplikasi (Node.js, Docker Compose, database, dsb).
