@@ -2,33 +2,44 @@
 
 Selamat datang di repositori pusat mata kuliah **Network Security**. Repositori ini dirancang sebagai panduan praktis (hands-on) untuk memahami vektor serangan jaringan dan metodologi pertahanan menggunakan lingkungan terkontainerisasi yang aman.
 
-## 📋 Daftar Kurikulum & Detail Teknis
+## 📋 Daftar Kurikulum (16 Pertemuan)
 
-Setiap pertemuan dirancang untuk menyeimbangkan teori protokol dengan praktik eksploitasi dan mitigasi.
-
-### Modul 1-7: Infrastructure & Network Attacks
+### Modul Infrastruktur & Network Attacks (Pertemuan 1–7)
 
 | Sesi | Topik | Detail Aktivitas & Tools |
 | --- | --- | --- |
-| **01** | **Setup Lab & CIA Triad** | Instalasi `docker-compose`, konfigurasi `macvlan` network, dan pengenalan Docker ephemeral storage. |
-| **02** | **Cryptography 101** | Praktik `openssl` (AES/RSA), hashing `md5sum`/`sha256sum`, dan analisis sertifikat SSL/TLS. |
-| **03** | **L2 Security: ARP Spoofing** | Penggunaan `arpspoof` (dsniff) dan `Ettercap`. |
-| **04** | **Wireless Security** | Simulasi WPA2 handshake, penggunaan `aircrack-ng` suite, dan serangan deauth. |
-| **05** | **L3 Security: IP/ICMP** | Analisis paket `scapy`, serangan *Smurf Attack*, dan DHCP Starvation menggunakan `yersinia`. |
-| **06** | **L4 Security: TCP/UDP** | *Three-way handshake* deep dive, SYN Flood menggunakan `hping3`, dan TCP Session Hijacking. |
-| **07** | **DNS Security** | Konfigurasi `bind9` rentan, DNS Cache Poisoning, dan *DNS Exfiltration*. |
+| **00** | **Docker & Kali Setup** | Instalasi Docker Desktop, perintah dasar `docker run/ps/exec`, volumes, bridge network, Docker Compose. |
+| **01** | **Pengantar Network Security & Setup Lab** | CIA Triad, `docker-compose` multi-container, Kali + DVWA, eksperimen persistensi volume. |
+| **02** | **Cryptography 101** | Praktik `openssl` (AES/RSA), hashing `md5sum`/`sha256sum`, analisis sertifikat SSL/TLS. |
+| **03** | **L2 Security: ARP Spoofing** | `arpspoof` (dsniff), IP Forwarding, DNS Spoofing via `iptables` NAT. |
+| **04** | **Wireless Security** | Simulasi WPA2 handshake, `aircrack-ng` suite, serangan deauth dengan `aireplay-ng`. |
+| **05** | **L3 Security: IP/ICMP** | Scapy, Smurf Attack, DHCP Starvation (`yersinia`), ICMP Redirect MITM. |
+| **06** | **L4 Security: TCP/UDP** | Three-way handshake, SYN Flood (`hping3`), TCP Session Hijacking, UDP Amplification. |
+| **07** | **DNS Security** | DNS Cache Poisoning, DNS Exfiltration, DNSSEC, DoH. |
 
-### Modul 8-14: Application Security & Defense
+### UTS (Pertemuan 8)
+
+| Sesi | Topik | Keterangan |
+| --- | --- | --- |
+| **08** | **🏫 UTS** | Ujian Tengah Semester — mencakup materi Pertemuan 1–7. |
+
+### Modul Application Security & Defense (Pertemuan 9–15)
 
 | Sesi | Topik | Detail Aktivitas & Tools |
 | --- | --- | --- |
-| **08** | **SQL Injection** | Manual union-based injection & automated scanning dengan `sqlmap` pada target DVWA. |
-| **09** | **XSS & CSRF** | Pencurian cookie via Stored XSS dan pembuatan form *auto-submit* untuk serangan CSRF. |
-| **10** | **Email Security** | Analisis header email (hop-by-hop), simulasi SMTP relay, dan setup SPF/DKIM record. |
-| **11** | **Firewalling** | Implementasi `iptables` rules (Drop, Reject, Accept) dan *Rate Limiting* koneksi. |
-| **12** | **IDS dengan Snort** | Penulisan *Custom Rules* Snort untuk mendeteksi Nmap scan dan serangan Brute Force. |
-| **13** | **Vuln Scanning** | Vulnerability assessment menggunakan `Nmap NSE`, `Nikto`, dan `OpenVAS/GVM`. |
-| **14** | **Hardening** | Implementasi *Least Privilege*, penutupan port tidak perlu, dan SSH hardening. |
+| **09** | **SQL Injection** | Manual union-based injection & automated scanning (`sqlmap`) pada DVWA. |
+| **10** | **XSS & CSRF** | Pencurian cookie via Stored XSS, pembuatan form auto-submit untuk CSRF. |
+| **11** | **CVE & CVSS** | CVE ID lifecycle, CVSS v4.0 metric groups, NVD, studi kasus Log4Shell. Hands-on: query NVD API, `nikto` scan, CVSS Calculator. |
+| **12** | **Setup VPS & Nginx** | Provisioning VPS (Sumopod + EasyPanel), konfigurasi Nginx sebagai WAF + Reverse Proxy, Rate Limiting, SSL (Certbot), Fail2ban. |
+| **13** | **Hands-On Reverse Proxy** | Lab NginxProxy (WAF dasar) vs HalimunProxy (AES-256-CBC encrypted proxy, Replay Protection, SSRF Guard). Penetrasi dengan `sqlmap` + Kali. |
+| **14** | **Firewalling** | Implementasi `iptables` rules (Drop, Reject, Accept), Rate Limiting koneksi, proteksi port scanning. |
+| **15** | **IDS dengan Snort** | Custom Rules Snort untuk mendeteksi Nmap scan dan SSH Brute Force. |
+
+### UAS (Pertemuan 16)
+
+| Sesi | Topik | Keterangan |
+| --- | --- | --- |
+| **16** | **🏆 UAS** | Ujian Akhir Semester — komprehensif Pertemuan 1–15. Termasuk soal praktik full pentest, CVE analysis, dan proxy comparison. |
 
 ---
 
@@ -39,62 +50,73 @@ Kita menggunakan Docker untuk mensimulasikan jaringan kompleks tanpa membebani r
 ### Contoh Konfigurasi `docker-compose.yml`
 
 ```yaml
+version: '3.8'
+
 services:
-  kali:
+  kali-attacker:
     image: kalilinux/kali-rolling
     container_name: kali-attacker
+    tty: true
+    stdin_open: true
+    privileged: true
+    volumes:
+      - ./kali-home:/root
     networks:
-      pentest_net:
+      lab_network:
         ipv4_address: 172.20.0.5
-    tty: true # Menjaga container tetap berjalan
 
   victim-web:
     image: vulnerables/web-dvwa
     container_name: web-target
     networks:
-      pentest_net:
+      lab_network:
         ipv4_address: 172.20.0.10
 
 networks:
-  pentest_net:
+  lab_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.20.0.0/24
+```
 
+---
+
+## 🧪 Hands-On Labs
+
+### Lab 1: NginxProxy — WAF Dasar
+```bash
+cd HandsOnServerProxy/NginxProxy
+docker-compose up -d --build
+# Akses: http://localhost:8080
+```
+
+### Lab 2: HalimunProxy — Encrypted Reverse Proxy
+```bash
+cd HandsOnServerProxy/HalimunProxy
+docker-compose up -d --build
+# Akses: http://localhost:8080 (admin/admin)
 ```
 
 ---
 
 ## 🎓 Proyek Utama
 
-### 1. UTS: Man-in-the-Middle (MITM) Framework
+### UTS (Pertemuan 8): MITM Framework
+**Objektif:** Membangun jalur intersepsi traffic di jaringan lokal.
+- **Alur:** `ARP Spoofing` → `IP Forwarding` → `DNS Spoofing` → `Credential Sniffing`
 
-**Objektif:** Membangun "jalur sutra" informasi ilegal di jaringan lokal.
-
-* **Target:** Intersepsi kredensial login dari situs HTTP di container korban.
-* **Alur:** `Arpspoofing` ➡️ `IP Forwarding` ➡️ `DNS Spoofing` ➡️ `SSL Strip` (opsional) ➡️ `Credential Sniffing`.
-
-### 2. UAS: Full Penetration Test (Vulnerable Lab)
-
-**Objektif:** Melakukan audit keamanan menyeluruh (Black-Box Testing).
-
-* **Tahapan:**
-1. **Reconnaissance:** Scanning port dan identifikasi service.
-2. **Exploitation:** Mendapatkan akses user (Low Privilege).
-3. **Privilege Escalation:** Menjadi `root` di dalam container.
-4. **Exfiltration:** Mengambil data sensitif (Flag).
-5. **Reporting:** Membuat laporan standar industri (Executive Summary vs Technical Findings).
-
-
+### UAS (Pertemuan 16): Full Penetration Test
+**Objektif:** Audit keamanan menyeluruh (Black-Box Testing) + analisis CVE/CVSS.
+- **Tahapan:** Reconnaissance → SQLi/XSS Exploitation → CVE Analysis → Proxy Comparison → Reporting
 
 ---
 
 ## 📚 Sumber Belajar & Referensi
 
-Untuk memperdalam materi, mahasiswa sangat disarankan merujuk pada:
-
-* **OWASP Top 10:** [owasp.org](https://owasp.org/www-project-top-ten/) (Standar keamanan web).
-* **PortSwigger Academy:** [portswigger.net](https://portswigger.net/web-security) (Latihan web security gratis).
-* **GTFOBins:** [gtfobins.github.io](https://gtfobins.github.io/) (Eksploitasi binary Unix).
-* **MITRE ATT&CK:** [attack.mitre.org](https://attack.mitre.org/) (Basis pengetahuan taktik serangan).
+- **OWASP Top 10:** [owasp.org](https://owasp.org/www-project-top-ten/)
+- **PortSwigger Academy:** [portswigger.net](https://portswigger.net/web-security)
+- **NVD:** [nvd.nist.gov](https://nvd.nist.gov)
+- **CVSS Calculator:** [first.org/cvss](https://www.first.org/cvss/calculator/4.0)
+- **GTFOBins:** [gtfobins.github.io](https://gtfobins.github.io/)
+- **MITRE ATT&CK:** [attack.mitre.org](https://attack.mitre.org/)

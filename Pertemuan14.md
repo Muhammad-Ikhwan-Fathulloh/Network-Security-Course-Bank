@@ -1,118 +1,146 @@
-# 🛡️ Pertemuan 14: System Hardening
+# 🧱 Pertemuan 14: Firewalling with iptables
 
 ## Daftar Isi
-1. [Prinsip Dasar System Hardening](#1-prinsip-dasar-system-hardening)
-2. [Manajemen Akun & Hak Akses (Least Privilege)](#2-manajemen-akun--hak-akses-least-privilege)
-3. [Hardening Layanan Jaringan (SSH & Ports)](#3-hardening-layanan-jaringan-ssh--ports)
-4. [Update & Patch Management](#4-update--patch-management)
-5. [Hands-On: Mengaudit Keamanan dengan Lynis](#5-hands-on-mengaudit-keamanan-dengan-lynis)
-6. [Hands-On: Mengamankan SSH Configuration](#6-hands-on-mengamankan-ssh-configuration)
-7. [Backup & Incident Response Plan](#7-backup--incident-response-plan)
+1. [Apa itu Firewall?](#1-apa-itu-firewall)
+2. [Mengenal iptables: Tables & Chains](#2-mengenal-iptables-tables--chains)
+3. [Arsitektur Paket dalam iptables](#3-arsitektur-paket-dalam-iptables)
+4. [Hands-On: Konfigurasi Dasar (Drop & Accept)](#4-hands-on-konfigurasi-dasar-drop--accept)
+5. [Hands-On: Membatasi Akses Port Spesifik](#5-hands-on-membatasi-akses-port-spesifik)
+6. [Hands-On: Rate Limiting & Proteksi DoS](#6-hands-on-rate-limiting--proteksi-dos)
+7. [Persistence: Menyimpan Aturan iptables](#7-persistence-menyimpan-aturan-iptables)
 8. [Latihan Mandiri](#8-latihan-mandiri)
 
 ---
 
-## 1. Prinsip Dasar System Hardening
+## 1. Apa itu Firewall?
 
-**System Hardening** adalah proses mengamankan sistem dengan mengurangi **Attack Surface** (permukaan serangan). Semakin sedikit layanan dan akses yang terbuka, semakin sulit bagi penyerang untuk meretas sistem.
+Firewall adalah pengawal keamanan jaringan yang memantau dan mengontrol lalu lintas jaringan masuk dan keluar berdasarkan aturan keamanan yang ditentukan.
 
-**Filosofi Utama:**
-- Jika tidak butuh, hapus.
-- Jika tidak pakai, matikan.
-- Jika harus pakai, amankan.
-
----
-
-## 2. Manajemen Akun & Hak Akses (Least Privilege)
-
-**Principle of Least Privilege (PoLP)** menyatakan bahwa pengguna atau sistem hanya boleh memiliki hak akses minimal yang diperlukan untuk menjalankan fungsinya.
-
-**Langkah Hardening Akun:**
-- Hapus akun user yang tidak aktif.
-- Gunakan `sudo` daripada login langsung sebagai `root`.
-- Terapkan kebijakan password yang kuat (panjang, kompleks, rotasi).
-- Batasi percobaan login (Lockout policy).
+**Fungsi Utama:**
+- Membatasi akses ke layanan yang tidak perlu.
+- Mencegah serangan malware/Scanning.
+- Mengatur segmentasi jaringan.
 
 ---
 
-## 3. Hardening Layanan Jaringan (SSH & Ports)
+## 2. Mengenal iptables: Tables & Chains
 
-### 3.1 Identifikasi Port Terbuka
-Langkah pertama hardening adalah mengetahui apa yang berjalan di sistem Anda.
-```bash
-ss -tulpn
-# atau
-netstat -tulpn
-```
+Linux menggunakan framework **Netfilter** melalui utility `iptables`.
 
-### 3.2 Matikan Layanan Tidak Perlu
-Misalnya jika Anda tidak membutuhkan web server:
-```bash
-systemctl stop apache2
-systemctl disable apache2
-```
+### 2.1 Tables
+1. **Filter**: Tabel default untuk filtering paket.
+2. **NAT**: Untuk Network Address Translation (routing).
+3. **Mangle**: Untuk modifikasi header paket.
+
+### 2.2 Chains (Alur)
+- **INPUT**: Paket yang ditujukan ke server sendiri.
+- **FORWARD**: Paket yang hanya lewat server (routing).
+- **OUTPUT**: Paket yang keluar dari server sendiri.
 
 ---
 
-## 4. Update & Patch Management
+## 3. Arsitektur Paket dalam iptables
 
-Software yang mengandung celah keamanan (CVE) harus segera diperbarui.
-
-```bash
-# Update repository
-apt update
-
-# Install patch keamanan saja (di Debian/Ubuntu)
-apt upgrade --with-new-pkgs
+```mermaid
+graph LR
+    A[Incoming Packet] --> B{INPUT Chain}
+    B -->|Accept| C[Application]
+    B -->|Drop| D[Packet Lost]
+    B -->|Reject| E[ICMP Error Sent]
+    
+    C --> F{OUTPUT Chain}
+    F --> G[Outgoing Packet]
 ```
 
 ---
 
-## 5. Hands-On: Mengaudit Keamanan dengan Lynis
+## 4. Hands-On: Konfigurasi Dasar (Drop & Accept)
 
-**Lynis** adalah tool audit keamanan open-source untuk sistem berbasis Linux/Unix.
-
+### 4.1 Cek Aturan Saat Ini
 ```bash
-# 1. Install Lynis
-apt install -y lynis
-
-# 2. Jalankan audit sistem secara menyeluruh
-lynis audit system
+# Di container Ubuntu-target
+iptables -L -n -v
 ```
 
-Lynis akan memberikan **Security Index** dan daftar **Suggestions** (saran) untuk meningkatkan keamanan sistem Anda.
-
----
-
-## 6. Hands-On: Mengamankan SSH Configuration
-
-File konfigurasi SSH berada di `/etc/ssh/sshd_config`.
-
-**Perubahan yang direkomendasikan:**
-1. **Ganti Port Standar**: Ubah `Port 22` menjadi port lain (misal: `Port 2222`).
-2. **Disable Root Login**: Set `PermitRootLogin no`.
-3. **Gunakan SSH Key**: Set `PasswordAuthentication no`.
-4. **Batasi User**: Tambahkan `AllowUsers namauser`.
-
+### 4.2 Blokir Ping (ICMP)
 ```bash
-# Restart SSH setelah perubahan
-systemctl restart ssh
+# Attacker (Kali) coba ping
+ping 172.20.0.10
+
+# Di container target (Ubuntu), blokir ICMP
+iptables -A INPUT -p icmp -j DROP
+
+# Cek kembali dari Attacker -> Seharusnya Request Timeout
+```
+
+### 4.3 Menghapus Aturan
+```bash
+# Hapus aturan di chain INPUT urutan ke-1
+iptables -D INPUT 1
 ```
 
 ---
 
-## 7. Backup & Incident Response Plan
+## 5. Hands-On: Membatasi Akses Port Spesifik
 
-Hardening tidak menjamin 100% aman. Anda butuh rencana cadangan:
-- **Backup Rutin**: Simpan backup di lokasi terpisah (Off-site backup).
-- **Log Management**: Kirim log ke server pusat (SIEM) agar tidak bisa dihapus penyerang.
+Kita ingin server hanya bisa diakses via HTTP (Port 80), sedangkan port lain ditutup.
+
+```bash
+# 1. Izinkan koneksi loopback (Localhost)
+iptables -A INPUT -i lo -j ACCEPT
+
+# 2. Izinkan koneksi establish (yang sudah berjalan)
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# 3. Izinkan port 80 (HTTP)
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# 4. Blokir SEMUA yang lain (Default Policy)
+iptables -P INPUT DROP
+```
+
+**Peringatan:** Hati-hati jangan sampai memblokir port SSH jika Anda menggunakan server remote!
+
+---
+
+## 6. Hands-On: Rate Limiting & Proteksi DoS
+
+Mencegah serangan Brute Force atau Flooding.
+
+### 6.1 Membatasi Paket ICMP
+```bash
+# Izinkan ping maksimal 1 paket per detik
+iptables -A INPUT -p icmp -m limit --limit 1/s -j ACCEPT
+iptables -A INPUT -p icmp -j DROP
+```
+
+### 6.2 Proteksi Port Scanning
+```bash
+# Deteksi port scan dan log ke syslog
+iptables -A INPUT -p tcp --tcp-flags ALL NONE -j LOG --log-prefix "NULL_SCAN: "
+iptables -A INPUT -p tcp --tcp-flags ALL NONE -j DROP
+```
+
+---
+
+## 7. Persistence: Menyimpan Aturan iptables
+
+Aturan `iptables` akan hilang saat reboot. Untuk menyimpannya:
+
+```bash
+# Install tool persistence
+apt update && apt install iptables-persistent
+
+# Simpan manual
+iptables-save > /etc/iptables/rules.v4
+```
 
 ---
 
 ## 8. Latihan Mandiri
 
-### Latihan 1: Analisis Suggestion Lynis
-Jalankan Lynis, pilih 3 saran (suggestions) yang diberikan, dan coba terapkan pada sistem Anda. Verifikasi dengan menjalankan Lynis kembali.
+### Latihan 1: SSH Hardening dengan iptables
+Buatlah aturan `iptables` yang hanya memperbolehkan akses SSH (Port 22) dari IP spesifik (IP container Kali Anda). Cobalah akses dari container lain, seharusnya gagal.
 
-### Latihan 2: Implementasi Fail2Ban
-Pelajari dan install `fail2ban` untuk secara otomatis memblokir IP yang melakukan percobaan brute force pada layanan SSH atau Web.
+### Latihan 2: Sinkronisasi Default Policy
+Diskusikan perbedaan antara menggunakan `DROP` dan `REJECT`. Kapan sebaiknya kita menggunakan salah satunya dari sudut pandang keamanan?

