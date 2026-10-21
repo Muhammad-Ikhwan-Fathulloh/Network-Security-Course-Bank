@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # KORBAN
+  korban:
+    image: ubuntu:22.04
+    container_name: korban
+    hostname: pc-korban
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.10
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c "
+      apt update &&
+      apt install -y curl net-tools iputils-ping tcpdump dnsutils &&
+      echo '✅ KORBAN SIAP (172.20.0.10)' &&
+      tail -f /dev/null
+      "
+
+  # WEBSITE ASLI
+  web-asli:
+    image: nginx:alpine
+    container_name: web-asli
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.20
+    volumes:
+      - ./web-asli:/usr/share/nginx/html
+    ports:
+      - "8080:80"
+    command: >
+      sh -c "
+      echo '✅ WEB ASLI SIAP (172.20.0.20)' &&
+      nginx -g 'daemon off;'
+      "
+
+  # WEBSITE PALSU
+  web-palsu:
+    image: nginx:alpine
+    container_name: web-palsu
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.30
+    volumes:
+      - ./web-palsu:/usr/share/nginx/html
+    ports:
+      - "8081:80"
+    command: >
+      sh -c "
+      echo '✅ WEB PALSU SIAP (172.20.0.30)' &&
+      nginx -g 'daemon off;'
+      "
+
+  # PENYERANG - KALI LINUX
+  penyerang:
+    image: kalilinux/kali-rolling
+    container_name: penyerang
+    networks:
+      lab_network:
+        ipv4_address: 172.20.0.100
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    privileged: true
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c "
+      apt update &&
+      apt install -y dsniff tcpdump net-tools curl &&
+      echo 1 > /proc/sys/net/ipv4/ip_forward &&
+      echo '🔥 PENYERANG SIAP (172.20.0.100)' &&
+      tail -f /dev/null
+      "
+
+networks:
+  lab_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
