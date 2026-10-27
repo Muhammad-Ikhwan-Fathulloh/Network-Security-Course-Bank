@@ -3,14 +3,15 @@
 ## Daftar Isi
 1. [Pengantar Keamanan Wi-Fi](#1-pengantar-keamanan-wi-fi)
 2. [Cara Kerja WPA2 Handshake](#2-cara-kerja-wpa2-handshake)
-3. [Hands-On: Setup Lab Wireless](#3-hands-on-setup-lab-wireless)
-4. [Hands-On: Monitor Mode & Network Scanning](#4-hands-on-monitor-mode--network-scanning)
-5. [Hands-On: Capturing WPA2 Handshake](#5-hands-on-capturing-wpa2-handshake)
-6. [Hands-On: Deauthentication Attack](#6-hands-on-deauthentication-attack)
-7. [Hands-On: Cracking Handshake dengan Aircrack-ng](#7-hands-on-cracking-handshake-dengan-aircrack-ng)
-8. [Hands-On: Evil Twin Attack dengan Airbase-ng](#8-hands-on-evil-twin-attack-dengan-airbase-ng)
-9. [Deteksi dan Pencegahan](#9-deteksi-dan-pencegahan)
-10. [Latihan Mandiri](#10-latihan-mandiri)
+3. [Docker Hands-On: Setup Lab Wireless dengan Container](#3-docker-hands-on-setup-lab-wireless-dengan-container)
+4. [Hands-On: Setup Lab Wireless (Fisik/VM)](#4-hands-on-setup-lab-wireless-fisikvm)
+5. [Hands-On: Monitor Mode & Network Scanning](#5-hands-on-monitor-mode--network-scanning)
+6. [Hands-On: Capturing WPA2 Handshake](#6-hands-on-capturing-wpa2-handshake)
+7. [Hands-On: Deauthentication Attack](#7-hands-on-deauthentication-attack)
+8. [Hands-On: Cracking Handshake dengan Aircrack-ng](#8-hands-on-cracking-handshake-dengan-aircrack-ng)
+9. [Hands-On: Evil Twin Attack dengan Airbase-ng](#9-hands-on-evil-twin-attack-dengan-airbase-ng)
+10. [Deteksi dan Pencegahan](#10-deteksi-dan-pencegahan)
+11. [Latihan Mandiri](#11-latihan-mandiri)
 
 ---
 
@@ -29,6 +30,23 @@ timeline
         WPA2 : AES-CCMP, standar saat ini<br>Rentan terhadap handshake crack
     section 2018
         WPA3 : SAE, perlindungan lebih kuat<br>Anti offline dictionary attack
+```
+
+### Arsitektur Keamanan WPA2
+
+```mermaid
+graph LR
+    A["🔐 Pre-Shared Key<br/>(WiFi Password)"] -->|PBKDF2 4096x| B["PSK<br/>(256-bit)"]
+    B -->|ANonce + SNonce| C["PTK<br/>(Pairwise Transient Key)"]
+    C -->|Encrypt Data| D["Encrypted Traffic<br/>(AES-CCMP)"]
+    
+    E["⚠️ Kerentanan"] -->|"Handshake capture"| F["Offline Dictionary<br/>Attack Possible"]
+    E -->|"Weak password"| F
+    
+    style A fill:#ff9999
+    style F fill:#ffcc99
+    style B fill:#99cc99
+    style D fill:#99ccff
 ```
 
 ### Mengapa WPA2 Masih Rentan?
@@ -102,7 +120,164 @@ PSK = PBKDF2(Passphrase, ESSID, 4096, 256)
 
 ---
 
-## 3. Hands-On: Setup Lab Wireless
+## 3. Docker Hands-On: Setup Lab Wireless dengan Container
+
+### 3.1 Kenapa Docker untuk Wireless Lab?
+
+Docker memungkinkan Anda setup lab wireless **tanpa perlu hardware WiFi fisik** dan **VM yang berat** :
+
+| Aspek | VM Tradisional | Docker Container |
+|-------|---|---|
+| **Booting Time** | 2-5 menit | 5-10 detik |
+| **Memory** | 2-4 GB per VM | 200-500 MB per container |
+| **Tools Setup** | Manual, lama | Instant dengan docker-compose |
+| **Network Simulation** | VirtualBox Bridge | Docker Network dengan Bridge/Host |
+| **Reproducibility** | Sulit | Docker image konsisten |
+
+### 3.2 Prerequisites
+
+```bash
+# Pastikan Docker dan Docker Compose terinstall
+docker --version
+docker-compose --version
+
+# Jika belum, install Docker
+# Windows/Mac: Gunakan Docker Desktop
+# Linux: 
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo bash get-docker.sh
+```
+
+### 3.3 Setup Docker Lab
+
+**Langkah 1: Clone atau download docker-compose file**
+
+```bash
+# Masuk folder workspace
+cd ~/workspace/network-security
+
+# Download docker-compose-p4.yml
+curl -o docker-compose-p4.yml https://raw.githubusercontent.com/yourrepo/Labs/docker-compose-p4.yml
+```
+
+**Langkah 2: Persiapkan folder struktur**
+
+```bash
+mkdir -p wifi-lab/{captures,wordlists,configs,scripts,burp-state}
+
+# Copy docker-compose file
+cp docker-compose-p4.yml wifi-lab/
+cd wifi-lab
+```
+
+**Langkah 3: Start Docker Lab**
+
+```bash
+# Build dan start semua container
+docker-compose -f docker-compose-p4.yml up -d
+
+# Verifikasi container berjalan
+docker-compose -f docker-compose-p4.yml ps
+```
+
+Output yang diharapkan:
+```
+CONTAINER ID   IMAGE                              STATUS
+xyz           kalilinux/kali-rolling             Up 10 seconds  kali-wireless-lab
+abc           ubuntu:22.04                       Up 10 seconds  wifi-ap-target
+def           portswigger/burp-suite-community   Up 10 seconds  burp-wireless
+```
+
+**Langkah 4: Masuk ke Kali Container**
+
+```bash
+# Masuk shell Kali
+docker-compose exec kali-wireless-lab bash
+
+# Verifikasi aircrack-ng terinstall (otomatis via docker image)
+which aircrack-ng
+aircrack-ng --version
+```
+
+### 3.4 Setup Wordlist untuk Cracking
+
+```bash
+# Dari host machine, download rockyou.txt
+cd captures/
+
+# Option 1: dari Kali repository
+docker-compose exec kali-wireless-lab bash -c "gunzip -c /usr/share/wordlists/rockyou.txt.gz > /tmp/wordlists/rockyou.txt"
+
+# Option 2: buat wordlist sendiri
+cat > wordlists/custom-wordlist.txt << EOF
+password123
+wifipassword
+router12345
+qwertyui
+12345678
+admin123
+EOF
+```
+
+### 3.5 Simulate WiFi Network dengan DNSMasq
+
+Di dalam container `wifi-ap-target`, kita bisa setup AP simulator:
+
+```bash
+# Masuk wifi-ap container
+docker-compose exec wifi-ap bash
+
+# Setup virtual interface (membutuhkan kernel support)
+ip link add wlan0-virt type dummy
+ip addr add 192.168.100.1/24 dev wlan0-virt
+ip link set wlan0-virt up
+
+# Start dnsmasq untuk DHCP simulation
+cat > /etc/dnsmasq.conf << EOF
+interface=wlan0-virt
+dhcp-range=192.168.100.2,192.168.100.254,12h
+server=/example.com/8.8.8.8
+EOF
+
+dnsmasq -d  # Run in foreground
+```
+
+### 3.6 Troubleshoot Docker Wireless Lab
+
+**Problem: "permission denied" saat airodump-ng**
+```bash
+# Pastikan container berjalan privileged (sudah di docker-compose)
+docker-compose exec kali-wireless-lab airmon-ng start wlan0
+# Jika error, tambah: docker-compose exec --privileged kali-wireless-lab
+```
+
+**Problem: "No suitable socket layer found"**
+```bash
+# Install additional tools
+docker-compose exec kali-wireless-lab bash -c \
+  "apt update && apt install -y hwinfo wireless-tools"
+```
+
+**Problem: Out of memory**
+```bash
+# Check docker stats
+docker stats
+
+# Increase Docker memory jika perlu
+# Windows/Mac: Docker Desktop → Settings → Resources → Memory
+```
+
+### 3.7 Docker Lab Advantages untuk Learning
+
+✅ **Reproducible** - Setup yang sama di semua machine  
+✅ **Fast** - Container startup dalam hitungan detik  
+✅ **Isolated** - Network terisolasi, tidak mengganggu WiFi real  
+✅ **Scalable** - Mudah membuat multiple AP atau client  
+✅ **Easy Cleanup** - Hapus semua dengan `docker-compose down`  
+
+---
+
+## 4. Hands-On: Setup Lab Wireless (Fisik/VM)
 
 ### 3.1 Persiapan Hardware
 

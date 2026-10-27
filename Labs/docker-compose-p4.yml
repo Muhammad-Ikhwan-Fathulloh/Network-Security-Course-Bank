@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Kali Linux untuk Wireless Security
+  kali-wireless:
+    image: kalilinux/kali-rolling:latest
+    container_name: kali-wireless-lab
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - ./captures:/tmp/captures
+      - ./wordlists:/tmp/wordlists
+    environment:
+      - DISPLAY=:0
+    networks:
+      - wireless-lab
+    command: /bin/bash
+
+  # Target WiFi Router Simulator (hostapd dalam container)
+  wifi-ap:
+    image: ubuntu:22.04
+    container_name: wifi-ap-target
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - ./configs:/etc/hostapd
+      - ./scripts:/usr/local/bin
+    networks:
+      - wireless-lab
+    command: |
+      /bin/bash -c "
+      apt-get update && apt-get install -y hostapd dnsmasq iw wireless-tools
+      echo 'Setting up WiFi AP...'
+      # WiFi AP akan dikonfigurasi via script external
+      sleep infinity
+      "
+
+  # Burp Suite Community untuk intercepting WiFi traffic
+  burp-suite:
+    image: portswigger/burp-suite-community:latest
+    container_name: burp-wireless
+    volumes:
+      - ./burp-state:/root/.burp
+    networks:
+      - wireless-lab
+    ports:
+      - "8080:8080"
+    environment:
+      - DISPLAY=:0
+
+networks:
+  wireless-lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+
+volumes:
+  captures:
+    driver: local
+  wordlists:
+    driver: local

@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # Attacker Container - Layer 4 Attacks
+  attacker-l4:
+    image: kalilinux/kali-rolling:latest
+    container_name: attacker-l4
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    volumes:
+      - ./scripts-l4:/tmp/scripts
+      - ./payloads:/tmp/payloads
+    networks:
+      - l4-lab
+    stdin_open: true
+    tty: true
+    command: |
+      /bin/bash -c "
+      apt-get update && apt-get install -y \
+        hping3 nmap netcat-openbsd tcpdump \
+        wireshark tshark scapy python3-scapy
+      tail -f /dev/null
+      "
+
+  # Target Web Server - untuk SYN Flood & Session Hijacking
+  target-webserver:
+    image: ubuntu:22.04
+    container_name: target-webserver-l4
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./web-config:/etc/nginx
+      - ./logs-l4:/var/log
+    networks:
+      - l4-lab
+    ports:
+      - "8080:80"
+    command: |
+      /bin/bash -c "
+      apt-get update && apt-get install -y nginx tcpdump
+      # Konfigurasi server untuk menerima banyak koneksi
+      sysctl -w net.ipv4.tcp_max_syn_backlog=4096
+      sysctl -w net.core.somaxconn=4096
+      # Start monitoring
+      nginx -g 'daemon off;'
+      "
+
+  # Target Service - Vulnerable UDP Service
+  target-udp:
+    image: ubuntu:22.04
+    container_name: target-udp-service
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./udp-service:/app
+    networks:
+      - l4-lab
+    ports:
+      - "5353:5353/udp"
+    command: |
+      /bin/bash -c "
+      apt-get update && apt-get install -y dnsmasq tcpdump
+      # Setup DNS server untuk amplification attack
+      dnsmasq --listen-address=0.0.0.0 --port=5353 -d
+      "
+
+  # Monitor & Analyzer
+  monitor-l4:
+    image: kalilinux/kali-rolling:latest
+    container_name: monitor-l4
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./captures-l4:/tmp/captures
+    networks:
+      - l4-lab
+    command: |
+      /bin/bash -c "
+      apt-get update && apt-get install -y \
+        tcpdump wireshark-common tshark \
+        net-tools iproute2
+      tail -f /dev/null
+      "
+
+networks:
+  l4-lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.60.0/24
+
+volumes:
+  scripts-l4:
+    driver: local
+  payloads:
+    driver: local
+  captures-l4:
+    driver: local
+  logs-l4:
+    driver: local

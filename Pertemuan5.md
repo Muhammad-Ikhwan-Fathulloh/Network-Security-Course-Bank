@@ -3,14 +3,15 @@
 ## Daftar Isi
 1. [Pengantar Layer 3 Security](#1-pengantar-layer-3-security)
 2. [ICMP Protocol & Kerentanannya](#2-icmp-protocol--kerentanannya)
-3. [Hands-On: Setup Lab dengan Scapy](#3-hands-on-setup-lab-dengan-scapy)
-4. [Hands-On: Analisis Paket dengan Scapy](#4-hands-on-analisis-paket-dengan-scapy)
-5. [Hands-On: Smurf Attack](#5-hands-on-smurf-attack)
-6. [Hands-On: DHCP Starvation dengan Yersinia](#6-hands-on-dhcp-starvation-dengan-yersinia)
-7. [Hands-On: ICMP Redirect Attack](#7-hands-on-icmp-redirect-attack)
-8. [Hands-On: Ping of Death](#8-hands-on-ping-of-death)
-9. [Deteksi dan Pencegahan](#9-deteksi-dan-pencegahan)
-10. [Latihan Mandiri](#10-latihan-mandiri)
+3. [Docker Hands-On: Setup Lab L3 Attacks](#3-docker-hands-on-setup-lab-l3-attacks)
+4. [Hands-On: Setup Lab dengan Scapy](#4-hands-on-setup-lab-dengan-scapy)
+5. [Hands-On: Analisis Paket dengan Scapy](#5-hands-on-analisis-paket-dengan-scapy)
+6. [Hands-On: Smurf Attack](#6-hands-on-smurf-attack)
+7. [Hands-On: DHCP Starvation dengan Yersinia](#7-hands-on-dhcp-starvation-dengan-yersinia)
+8. [Hands-On: ICMP Redirect Attack](#8-hands-on-icmp-redirect-attack)
+9. [Hands-On: Ping of Death](#9-hands-on-ping-of-death)
+10. [Deteksi dan Pencegahan](#10-deteksi-dan-pencegahan)
+11. [Latihan Mandiri](#11-latihan-mandiri)
 
 ---
 
@@ -98,9 +99,139 @@ graph TD
 3. **Broadcast** - ICMP ke broadcast address berdampak luas
 4. **Tunneling** - Data bisa disembunyikan di ICMP payload
 
+### Smurf Attack Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant Attacker
+    participant Broadcast as Broadcast Network<br>192.168.1.255
+    participant Victims as Multiple Hosts
+    participant Target as Target Server
+    
+    Attacker->>Broadcast: ICMP Echo Request<br>Source: Target IP<br>Dest: Broadcast Address
+    
+    Broadcast->>Victims: Deliver ke semua hosts
+    
+    Victims->>Target: ICMP Echo Reply (ratusan)<br>Overwhelming target
+    
+    Note over Target: Bandwidth saturation<br>Denial of Service!
+```
+
+### ICMP Redirect Attack
+
+```mermaid
+graph LR
+    A["Client<br>192.168.1.100"]
+    B["Attacker<br>192.168.1.50<br>(Rogue Router)"]
+    C["Router Asli<br>192.168.1.1"]
+    D["Internet<br>8.8.8.8"]
+    
+    A -->|"Traffic Normal"| C
+    C -->|"Kirim ICMP<br>Redirect"| A
+    A -->|"Route Changed!<br>Paket ke Attacker"| B
+    B -->|"MITM - Sniff/Modify"| D
+    B -->|"Forward ke<br>Router Asli"| C
+    
+    style B fill:#ff9999
+    style C fill:#99ccff
+```
+
 ---
 
-## 3. Hands-On: Setup Lab dengan Scapy
+## 3. Docker Hands-On: Setup Lab L3 Attacks
+
+### 3.1 Mengapa Docker untuk L3 Lab?
+
+Docker memberikan cara yang **mudah dan reproducible** untuk setup lab Layer 3 attacks tanpa perlu konfigurasi network yang rumit:
+
+| Fitur | Benefit |
+|-------|---------|
+| **Container Network** | Isolated network seperti real infrastructure |
+| **No external network impact** | Attacks hanya affect lab network, tidak real WiFi |
+| **Easy multi-host setup** | Buat banyak attacker/target hanya dengan satu command |
+| **DHCP simulation** | Bisa test DHCP starvation dalam container |
+| **Persistent capture** | Simpan PCAP files untuk analisis kemudian |
+
+### 3.2 Quick Start Docker Lab
+
+**Step 1: Persiapkan folder**
+
+```bash
+# Create workspace
+mkdir -p l3-lab && cd l3-lab
+
+# Download docker-compose-p5.yml
+wget https://raw.githubusercontent.com/yourrepo/Labs/docker-compose-p5.yml
+# atau copy dari: Labs/docker-compose-p5.yml
+```
+
+**Step 2: Start Lab**
+
+```bash
+# Build dan run
+docker-compose -f docker-compose-p5.yml up -d
+
+# Verify containers
+docker-compose ps
+```
+
+Expected output:
+```
+NAME           IMAGE                      STATUS
+attacker-l3    kalilinux/kali-rolling    Up 5 seconds
+target-l3      ubuntu:22.04              Up 5 seconds
+dhcp-server    ubuntu:22.04              Up 5 seconds
+monitor-l3     kalilinux/kali-rolling    Up 5 seconds
+```
+
+**Step 3: Verifikasi Konektivitas**
+
+```bash
+# Terminal 1: Cek IP address
+docker-compose exec target-l3 ip addr show
+
+# Terminal 2: Ping dari attacker ke target
+docker-compose exec attacker-l3 ping -c 4 192.168.50.3
+
+# Terminal 3: Monitor dengan tcpdump
+docker-compose exec monitor-l3 tcpdump -i eth0 -n icmp
+```
+
+### 3.3 Lab Topology
+
+```mermaid
+graph TB
+    subgraph "Docker Network: 192.168.50.0/24"
+        A["🔴 attacker-l3<br>192.168.50.2"]
+        B["🟠 target-l3<br>192.168.50.3"]
+        C["🟡 dhcp-server<br>192.168.50.4"]
+        D["🟢 monitor-l3<br>192.168.50.5"]
+    end
+    
+    A -->|ICMP Echo<br>to broadcast| C
+    A -->|DHCP Starvation| C
+    D -->|tcpdump| A
+    D -->|tcpdump| B
+    D -->|tcpdump| C
+    
+    style A fill:#ff9999
+    style C fill:#ffcc99
+    style D fill:#99ff99
+```
+
+### 3.4 Cleanup Lab
+
+```bash
+# Stop semua container
+docker-compose down
+
+# Hapus semua images (optional)
+docker-compose down -v  # Also remove volumes
+```
+
+---
+
+## 4. Hands-On: Setup Lab dengan Scapy
 
 ### 3.1 Topologi Lab
 
