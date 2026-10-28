@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # Attacker - DNS Poisoning & Exfiltration
   attacker-dns:
     image: kalilinux/kali-rolling:latest
     container_name: attacker-dns
@@ -9,118 +6,76 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    volumes:
-      - ./dns-scripts:/tmp/dns-scripts
-      - ./dns-payloads:/tmp/dns-payloads
-    networks:
-      - dns-lab
     stdin_open: true
     tty: true
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y \
-        dnsmasq python3-scapy scapy dnschef \
-        dig nslookup tcpdump netcat-openbsd \
-        wireshark tshark
-      tail -f /dev/null
-      "
+    volumes:
+      - ./scripts:/tmp/dns-scripts
+      - ./captures:/tmp/captures
+    networks:
+      - dns-lab
 
-  # Target DNS Resolver - Vulnerable ke Cache Poisoning
   dns-resolver:
     image: ubuntu:22.04
     container_name: dns-resolver-target
     privileged: true
     cap_add:
       - NET_ADMIN
-    volumes:
-      - ./resolver-config:/etc/bind9
-      - ./dns-logs:/var/log/bind9
+    stdin_open: true
+    tty: true
     networks:
       - dns-lab
     ports:
       - "53:53/udp"
       - "53:53/tcp"
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y bind9 bind9-utils tcpdump
-      # Setup vulnerable DNS resolver (BIND9)
-      mkdir -p /var/log/bind9 && chown bind:bind /var/log/bind9
-      /etc/init.d/bind9 start
-      tail -f /dev/null
-      "
+    command: sleep infinity
 
-  # Authoritative DNS Server - Target untuk zone transfer
   dns-auth:
     image: ubuntu:22.04
     container_name: dns-auth-server
     privileged: true
     cap_add:
       - NET_ADMIN
-    volumes:
-      - ./auth-dns-config:/etc/bind9
+    stdin_open: true
+    tty: true
     networks:
       - dns-lab
     ports:
-      - "5353:53/udp"
-      - "5353:53/tcp"
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y bind9 bind9-utils
-      # Authoritative nameserver
-      /etc/init.d/bind9 start
-      tail -f /dev/null
-      "
+      - "5355:5355/udp"
+      - "5355:5355/tcp"
+    command: sleep infinity
 
-  # Web Server - untuk DNS Exfiltration Target
   web-target:
     image: ubuntu:22.04
     container_name: web-dns-target
-    volumes:
-      - ./web-data:/var/www/html
+    stdin_open: true
+    tty: true
     networks:
       - dns-lab
     ports:
       - "8081:80"
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y apache2
-      echo 'sensitive-data-12345' > /var/www/html/secret.txt
-      apache2ctl -D FOREGROUND
-      "
+    command: sleep infinity
 
-  # Monitor - Capture & Analyze DNS traffic
+  client-dns:
+    image: ubuntu:22.04
+    container_name: client-dns
+    stdin_open: true
+    tty: true
+    networks:
+      - dns-lab
+    command: sleep infinity
+
   monitor-dns:
     image: kalilinux/kali-rolling:latest
     container_name: monitor-dns
     cap_add:
       - NET_ADMIN
+    stdin_open: true
+    tty: true
     volumes:
-      - ./captures-dns:/tmp/captures
-      - ./dns-analysis:/tmp/analysis
+      - ./captures:/tmp/captures
     networks:
       - dns-lab
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y \
-        tcpdump wireshark-common tshark \
-        dnsutils dig
-      tail -f /dev/null
-      "
-
-  # Client - untuk testing DNS resolution
-  client-dns:
-    image: ubuntu:22.04
-    container_name: client-dns
-    networks:
-      - dns-lab
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y \
-        dnsutils bind9-utils curl wget
-      # Configure to use dns-resolver
-      echo 'nameserver 192.168.70.3' > /etc/resolv.conf
-      tail -f /dev/null
-      "
+    command: sleep infinity
 
 networks:
   dns-lab:
@@ -128,13 +83,3 @@ networks:
     ipam:
       config:
         - subnet: 192.168.70.0/24
-
-volumes:
-  dns-scripts:
-    driver: local
-  dns-payloads:
-    driver: local
-  captures-dns:
-    driver: local
-  dns-analysis:
-    driver: local

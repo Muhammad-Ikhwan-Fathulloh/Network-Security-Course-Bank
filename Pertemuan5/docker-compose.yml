@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # Attacker Container - Layer 3 Attacks
   attacker-l3:
     image: kalilinux/kali-rolling:latest
     container_name: attacker-l3
@@ -10,72 +7,38 @@ services:
       - NET_ADMIN
       - NET_RAW
       - SYS_ADMIN
-    volumes:
-      - ./scripts-l3:/tmp/scripts
-      - ./packets:/tmp/packets
-    networks:
-      - l3-lab
     stdin_open: true
     tty: true
-    command: /bin/bash
+    volumes:
+      - ./scripts:/tmp/scripts
+      - ./captures:/tmp/captures
+    networks:
+      - l3-lab
 
-  # Target Container - Vulnerable to L3 Attacks
   target-l3:
     image: ubuntu:22.04
     container_name: target-l3
     privileged: true
     cap_add:
       - NET_ADMIN
-    volumes:
-      - ./target-config:/etc/
-      - ./logs:/var/log/
+    stdin_open: true
+    tty: true
     networks:
       - l3-lab
-    environment:
-      - ICMP_ECHO_IGNORE_BROADCASTS=0
-      - IP_FORWARD=1
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y \
-        iproute2 iputils-ping tcpdump net-tools \
-        wireshark tshark dhcp3-server
-      # Enable ICMP echo reply to broadcast (vulnerable)
-      echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
-      echo 1 > /proc/sys/net/ipv4/ip_forward
-      tail -f /dev/null
-      "
+    command: sleep infinity
 
-  # DHCP Server - untuk DHCP Starvation
-  dhcp-server:
-    image: ubuntu:22.04
-    container_name: dhcp-server-target
-    cap_add:
-      - NET_ADMIN
-    volumes:
-      - ./dhcp-config:/etc/dhcp
-    networks:
-      - l3-lab
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y isc-dhcp-server
-      dhcpd -f -d -cf /etc/dhcp/dhcpd.conf eth0
-      "
-
-  # Monitor Container - untuk tcpdump dan analisis
   monitor-l3:
     image: kalilinux/kali-rolling:latest
     container_name: monitor-l3
     cap_add:
       - NET_ADMIN
+    stdin_open: true
+    tty: true
     volumes:
-      - ./captures-l3:/tmp/captures
+      - ./captures:/tmp/captures
     networks:
       - l3-lab
-    command: |
-      /bin/bash -c "
-      apt-get update && apt-get install -y tcpdump wireshark-common tshark
-      tail -f /dev/null
-      "
+    command: sleep infinity
 
 networks:
   l3-lab:
@@ -83,11 +46,3 @@ networks:
     ipam:
       config:
         - subnet: 192.168.50.0/24
-
-volumes:
-  scripts-l3:
-    driver: local
-  packets:
-    driver: local
-  captures-l3:
-    driver: local
