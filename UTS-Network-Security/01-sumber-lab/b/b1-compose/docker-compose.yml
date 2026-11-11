@@ -1,0 +1,12 @@
+services:
+  target:
+    image: nginx:alpine
+    networks: [lab]
+  attacker:
+    image: alpine
+    command: sleep infinity
+    networks: [lab]
+
+networks:
+  lab:
+    internal: true

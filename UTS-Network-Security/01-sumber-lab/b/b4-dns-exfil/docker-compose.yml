@@ -1,0 +1,12 @@
+services:
+  dns:
+    image: uts-dnsmasq
+    networks: [lab]
+  attacker:
+    image: uts-kali-tools
+    command: sleep infinity
+    networks: [lab]
+
+networks:
+  lab:
+    internal: true

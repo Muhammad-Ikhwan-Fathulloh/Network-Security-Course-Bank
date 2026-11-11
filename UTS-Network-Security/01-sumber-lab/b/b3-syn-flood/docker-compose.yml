@@ -1,0 +1,13 @@
+services:
+  target:
+    image: nginx:alpine
+    networks: [lab]
+  attacker:
+    image: uts-kali-tools
+    command: sleep infinity
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks: [lab]
+
+networks:
+  lab:
+    internal: true
