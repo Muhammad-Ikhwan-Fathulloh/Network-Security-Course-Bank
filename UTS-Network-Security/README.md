@@ -39,10 +39,3 @@ UTS-Network-Security/
 3. **Tentukan kasus** dari NIM: jumlahkan seluruh digit, ambil sisa bagi 10, dan sisa 0 berarti Kasus 10. Contoh NIM 19552011024: jumlah digit 30, sisa 0, maka Kasus 10.
 4. **Kerjakan kasus** dengan mengikuti `02-dokumen/LEMBAR-PERINTAH-PER-KASUS.md` pada bagian kasus Anda. Setiap kasus mencakup tujuh tugas (Pertemuan 1 sampai 7) dengan bobot sama.
 5. **Lampirkan** jawaban, output terminal, dan jumlah digit beserta sisa bagi NIM di `jawaban.md`.
-
-## Catatan untuk penguji
-
-- Sebelum ujian, jalankan semua perintah sekali di lingkungan yang sama. Kode di folder ini belum pernah diuji di Docker.
-- Siapkan file `handshake-KN.cap` dan `wordlist-KN.txt` untuk Tugas 4, karena keduanya disediakan penguji.
-- Buat dua versi soal dengan mengganti nama container, volume, dan kata sandi untuk mengurangi contekan.
-- Rubrik penilaian ada di `DOKUMEN-UTS-LENGKAP.md` bagian 5. Total nilai 100.
